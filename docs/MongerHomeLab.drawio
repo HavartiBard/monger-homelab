@@ -1,12 +1,9 @@
-<mxfile host="app.diagrams.net" modified="2024-03-28T20:07:50.379Z" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:124.0) Gecko/20100101 Firefox/124.0" etag="U3I8-bg8mZdYrxeT0zM2" version="24.2.0" type="github">
+<mxfile host="app.diagrams.net" modified="2024-03-28T20:09:31.860Z" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:124.0) Gecko/20100101 Firefox/124.0" etag="KHsbFkm595LbiXcBkHuq" version="24.2.0" type="github">
   <diagram name="Page-1" id="KUnC63UtoMnDtqXt_eEI">
-    <mxGraphModel dx="2082" dy="1099" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+    <mxGraphModel dx="1232" dy="1099" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="cCqJD3XSu3t6gPU_J3TH-4" value="" style="fontColor=#000000;verticalAlign=middle;verticalLabelPosition=middle;labelPosition=right;align=left;html=1;outlineConnect=0;fillColor=#d6d6d6;strokeColor=#999;gradientColor=none;gradientDirection=north;strokeWidth=2;shape=stencil(bVHNzgIhDHwajhIEE72a/fTkOxh2QZZ8CyXA+vP2FquHjSZAOzMtGQpTXRl1skwKXZIdKlN/TMqrzl73E9ISlZHItRSEow6WqH00GbxB7gQOMHQwQaaq26JLHZjYs5YLproLZOsyzNEshI/sg3bNUskDXTLWmgpTWHfENacJtOE3/++DNV5zyA7phlPDmA8QAsSCWR3n0GM0bW/xeHs+Z+ih8nJtrVJs0n31pfAUHT3mTj52fEv4QVgsnyok3/weWTO+HAEyX1N4sfQfL+IJ);labelBackgroundColor=none;aspect=fixed;" vertex="1" parent="1">
-          <mxGeometry x="-260" y="510" width="120" height="120" as="geometry" />
-        </mxCell>
       </root>
     </mxGraphModel>
   </diagram>
