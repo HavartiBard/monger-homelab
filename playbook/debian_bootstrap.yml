@@ -1,0 +1,119 @@
+---
+- name: Bootstrap AMD Hosts
+  hosts: amd_nodes
+  become: true
+  tasks:
+
+    # Update sources list for Debian so we can access amd64-microcode package, update and upgrade apt packages
+    # Install amd64-microcode package.  Note you need to reboot after this section to apply the microcode updates
+    - name: Update sources list for Debian
+      copy:
+        src: Debian/debian-nonfree.list 
+        dest: /etc/apt/sources.list.d/debian-nonfree.list
+        owner: root
+        group: root
+      become: yes
+      become_user: root
+
+    - name: enable nf_conntrack 
+      command: modprobe nf_conntrack
+      become: yes
+      become_user: root
+
+    - name: Update and upgrade apt packages
+      apt:
+        upgrade: yes
+        update_cache: yes
+
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+    - name: Install amd64-microcode package
+      apt:
+        name:
+          - amd64-microcode
+        state: present
+
+    # Upload sysctl optimizations for Network, Memory and Kernel
+    - name: Update Network sysctl settings
+      copy:
+        src: Debian/sysctls/85_network_optimizations.conf
+        dest: /etc/sysctl.d/85_network_optimizations.conf
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Apply Network sysctl settings
+      command: sysctl -p /etc/sysctl.d/85_network_optimizations.conf
+      
+    - name: Update Memory sysctl settings
+      copy:
+        src: Debian/sysctls/85_memory_optimizations.conf
+        dest: /etc/sysctl.d/85_memory_optimizations.conf
+        owner: root
+        group: root
+        mode: '0644'
+    
+    - name: Apply Memory sysctl settings
+      command: sysctl -p /etc/sysctl.d/85_memory_optimizations.conf
+
+    - name: Update Kernel sysctl settings
+      copy:
+        src: Debian/sysctls/85_kernel_optimizations.conf
+        dest: /etc/sysctl.d/85_kernel_optimizations.conf
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Apply Kernel sysctl settings
+      command: sysctl -p /etc/sysctl.d/85_kernel_optimizations.conf
+
+    # Install 1Password CLI for Debian amd64
+    - name: Stat Check if 1Password is installed
+      stat:
+        path: /usr/bin/1password
+      register: onepassword_stat_check
+
+    - name: Download 1Password .deb package
+      get_url:
+        url: "https://downloads.1password.com/linux/debian/amd64/stable/1password-latest.deb"
+        dest: /tmp/1password-latest.deb
+      when: onepassword_stat_check.stat.exists is not defined or not onepassword_stat_check.stat.exists
+
+    - name: Install 1Password
+      apt:
+        deb: /tmp/1password-latest.deb
+      become: true
+      when: onepassword_stat_check.stat.exists is not defined or not onepassword_stat_check.stat.exists
+
+
+# ARM specific playbook for Debian hosts
+- name: Bootstrap ARM Hosts
+  hosts: arm_nodes
+  become: true
+  tasks:
+    - name: Stat Check if 1Password is installed
+      stat:
+        path: /usr/bin/1password
+      register: onepassword_stat_check
+    - name: Add 'arm' architecture to dpkg
+      command: dpkg --add-architecture arm
+      become: true
+
+    - name: Update package lists
+      apt:
+        update_cache: yes
+      become: true
+
+    - name: Download 1Password .deb package
+      get_url:
+        url: "https://downloads.1password.com/linux/debian/arm/stable/1password-cli-arm-latest.deb"
+        dest: /tmp/1password-latest.deb
+      when: onepassword_stat_check.stat.exists is not defined or not onepassword_stat_check.stat.exists
+
+    - name: Install 1Password
+      apt:
+        deb: /tmp/1password-latest.deb
+      become: true
+      when: onepassword_stat_check.stat.exists is not defined or not onepassword_stat_check.stat.exists

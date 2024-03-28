@@ -1,0 +1,23 @@
+- name: Disable Proxmox Subscription Warning
+  hosts: pve_nodes
+  tasks:
+    - name: Make a backup of proxmoxlib.js
+      become: yes
+      become_user: root
+      command: cp /usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.js /usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.js.bak
+
+    - name: Copy custom ZSH config file
+      copy:
+        src: proxmoxlib.js  
+        dest: /usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.js
+        owner: root
+        group: root
+      become: yes
+      become_user: root
+
+    - name: Restart Proxmox web service
+      become: yes
+      become_user: root
+      systemd:
+        name: pveproxy.service
+        state: restarted

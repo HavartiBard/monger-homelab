@@ -1,0 +1,63 @@
+
+- name: General Bootstrap Hosts
+  hosts: all
+  become: true
+
+  tasks:
+    - name: Update and upgrade apt packages
+      apt:
+        upgrade: yes
+        update_cache: yes
+
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+    - name: Install required packages
+      apt:
+        name:
+          - curl
+          - zsh
+          - zsh-antigen
+          - ethtool
+          - htop
+          - tree
+          - vim
+          - lm-sensors
+          - s-tui
+          - snapd
+        state: present
+
+    - name: Check if Oh My Zsh is installed
+      stat:
+        path: /home/{{ ansible_user }}/.oh-my-zsh
+      register: ohmyzsh_check
+
+    - name: Install Oh My Zsh
+      shell: sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+      args:
+        executable: /bin/bash
+      become_user: james
+      when: ohmyzsh_check.stat.isdir is not defined or not ohmyzsh_check.stat.isdir
+
+    - name: Copy custom ZSH config file
+      copy:
+        src: .zshrc  
+        dest: /home/james/.zshrc
+        owner: james
+        group: james
+        
+    - name: Remove carriage returns from .zshrc
+      replace:
+        path: /home/james/.zshrc
+        regexp: '\r'
+        replace: ''
+
+    - name: Change shell for ansible_user
+      command: "chsh -s /bin/zsh {{ ansible_user }}"
+      become: true
+      become_user: root
+
+- import_playbook: debian_bootstrap.yml
+
+- import_playbook: proxmox_subscription.yml
