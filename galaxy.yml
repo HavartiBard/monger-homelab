@@ -45,7 +45,7 @@ dependencies:
   ansible.posix: ">=1.5.0"
 
 # The URL of the originating SCM repository
-#repository:
+repository: https://github.com/HavartiBard/monger-homelab
 
 # The URL to any online docs
 #documentation: 
