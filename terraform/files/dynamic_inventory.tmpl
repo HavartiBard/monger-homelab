@@ -1,0 +1,11 @@
+${file("files/static_inventory.tmpl")}
+
+[controllers]
+%{ for k3s_controller in k3s_controllers ~}
+${k3s_controller.name} ansible_host=${k3s_controller.ip} ansible_user=james
+%{ endfor ~}
+
+[workers]
+%{ for k3s_worker in k3s_workers ~}
+${k3s_worker.name} ansible_host=${k3s_worker.ip} ansible_user=james
+%{ endfor ~}
