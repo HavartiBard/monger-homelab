@@ -26,6 +26,12 @@ provider "proxmox" {
   pm_tls_insecure = true
 
   pm_debug = true
+
+          # Setting parallism to 2 to avoid NFS timeouts
+  extra_arguments "default" {
+    commands =[ "validate", "plan", "apply", "destroy" ]
+    arguments = ["-parallelism=2"]
+  }
 }
 
 provider "pihole" {

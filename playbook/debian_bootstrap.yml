@@ -69,51 +69,12 @@
     - name: Apply Kernel sysctl settings
       command: sysctl -p /etc/sysctl.d/85_kernel_optimizations.conf
 
-    # Install 1Password CLI for Debian amd64
-    - name: Stat Check if 1Password is installed
-      stat:
-        path: /usr/bin/1password
-      register: onepassword_stat_check
-
-    - name: Download 1Password .deb package
-      get_url:
-        url: "https://downloads.1password.com/linux/debian/amd64/stable/1password-latest.deb"
-        dest: /tmp/1password-latest.deb
-      when: onepassword_stat_check.stat.exists is not defined or not onepassword_stat_check.stat.exists
-
-    - name: Install 1Password
-      apt:
-        deb: /tmp/1password-latest.deb
-      become: true
-      when: onepassword_stat_check.stat.exists is not defined or not onepassword_stat_check.stat.exists
-
-
 # ARM specific playbook for Debian hosts
 - name: Bootstrap ARM Hosts
   hosts: arm_nodes
   become: true
   tasks:
-    - name: Stat Check if 1Password is installed
-      stat:
-        path: /usr/bin/1password
-      register: onepassword_stat_check
-    - name: Add 'arm' architecture to dpkg
-      command: dpkg --add-architecture arm
-      become: true
-
     - name: Update package lists
       apt:
         update_cache: yes
       become: true
-
-    - name: Download 1Password .deb package
-      get_url:
-        url: "https://downloads.1password.com/linux/debian/arm/stable/1password-cli-arm-latest.deb"
-        dest: /tmp/1password-latest.deb
-      when: onepassword_stat_check.stat.exists is not defined or not onepassword_stat_check.stat.exists
-
-    - name: Install 1Password
-      apt:
-        deb: /tmp/1password-latest.deb
-      become: true
-      when: onepassword_stat_check.stat.exists is not defined or not onepassword_stat_check.stat.exists

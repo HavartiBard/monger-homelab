@@ -3,7 +3,7 @@ Home Lab
 
 Establishing docs to create a fresh docker and kubernetes cluster install
 
-
+This is my attempt to build and manage a kubernetes cluster using ansible and k3s. I am using the following resources to guide me:
 
 # Build a Kubernetes cluster using K3s via Ansible
 
@@ -83,6 +83,11 @@ Now that we can SSH into these boxes, lets bootsrap them:
 ```
     ansible-playbook -i inventory/raclette/inventory.ini playbooks/ubuntu_bootsrap.yml -vv
 ```
+
+## Setup Cloudflare domain for Let's Encrypt ACME validation
+
+https://github.com/acmesh-official/acme.sh/wiki/dnsapi#dns_cf
+
 ## Usage
 
 First copy the sample inventory to `inventory.yml`.

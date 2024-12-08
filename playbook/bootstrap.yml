@@ -26,6 +26,8 @@
           - lm-sensors
           - s-tui
           - snapd
+          - 1password-cli
+          - libguestfs-tools
         state: present
 
     - name: Check if Oh My Zsh is installed
