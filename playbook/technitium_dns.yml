@@ -1,0 +1,186 @@
+---
+- name: Bootstrap and Install Technitium DNS Server
+  hosts: technitium_dns
+  become: yes
+  vars:
+    technitium_version: "13.0.2"  # Pin specific version for reproducibility
+    technitium_data_dir: "/opt/technitium"
+    technitium_port: 5380
+    
+  tasks:
+    # ========================================
+    # Phase 1: System Bootstrap
+    # ========================================
+    - name: Fix Ubuntu 24.10 repository sources (use HTTPS)
+      replace:
+        path: /etc/apt/sources.list.d/ubuntu.sources
+        regexp: '^URIs: http:'
+        replace: 'URIs: https:'
+      ignore_errors: yes
+
+    - name: Update and upgrade apt packages
+      apt:
+        upgrade: yes
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install base packages
+      apt:
+        name:
+          - curl
+          - zsh
+          - zsh-antigen
+          - gnupg
+          - vim
+          - htop
+          - net-tools
+        state: present
+
+    - name: Check if Oh My Zsh is installed
+      stat:
+        path: /home/{{ ansible_user }}/.oh-my-zsh
+      register: ohmyzsh_check
+
+    - name: Install Oh My Zsh
+      shell: sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+      args:
+        executable: /bin/bash
+      become_user: "{{ ansible_user }}"
+      when: ohmyzsh_check.stat.isdir is not defined or not ohmyzsh_check.stat.isdir
+
+    - name: Check if custom .zshrc exists
+      stat:
+        path: "{{ playbook_dir }}/.zshrc"
+      delegate_to: localhost
+      register: zshrc_file_check
+      become: no
+
+    - name: Copy custom ZSH config file
+      copy:
+        src: .zshrc
+        dest: /home/{{ ansible_user }}/.zshrc
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+      when: zshrc_file_check.stat.exists
+
+    - name: Remove carriage returns from .zshrc
+      replace:
+        path: /home/{{ ansible_user }}/.zshrc
+        regexp: '\r'
+        replace: ''
+      when: zshrc_file_check.stat.exists
+
+    - name: Check if firewalld is installed
+      stat:
+        path: /usr/sbin/firewalld
+      register: firewalld_stat_check
+
+    - name: Disable firewalld
+      systemd:
+        name: firewalld
+        state: stopped
+        enabled: no
+      when: firewalld_stat_check.stat.exists
+
+    - name: Enable IPv4 forwarding
+      sysctl:
+        name: net.ipv4.ip_forward
+        value: '1'
+        sysctl_set: yes
+        state: present
+        reload: yes
+
+    - name: Disable swap in fstab
+      replace:
+        path: /etc/fstab
+        regexp: '^([^#].*?\sswap\s+sw\s+.*)$'
+        replace: '# \1'
+
+    - name: Disable swap
+      command: swapoff -a
+      when: ansible_swaptotal_mb > 0
+
+    # ========================================
+    # Phase 2: Docker Installation
+    # ========================================
+    - name: Install Docker prerequisites
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+        state: present
+
+    - name: Add Docker GPG key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add Docker repository
+      apt_repository:
+        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+        state: present
+
+    - name: Install Docker
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-compose-plugin
+        state: present
+        update_cache: yes
+
+    - name: Ensure Docker service is running
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Create Technitium data directory
+      file:
+        path: "{{ technitium_data_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Deploy Technitium DNS container
+      docker_container:
+        name: technitium
+        image: "technitium/dns-server:{{ technitium_version }}"
+        state: started
+        restart_policy: unless-stopped
+        ports:
+          - "53:53/udp"
+          - "53:53/tcp"
+          - "{{ technitium_port }}:5380/tcp"  # Web interface
+          - "67:67/udp"  # DHCP (optional)
+        volumes:
+          - "{{ technitium_data_dir }}:/etc/dns"
+        env:
+          DNS_SERVER_DOMAIN: "{{ inventory_hostname }}"
+          DNS_SERVER_ADMIN_PASSWORD: "admin"  # Change this after first login!
+        capabilities:
+          - NET_ADMIN
+
+    - name: Wait for Technitium to be ready
+      wait_for:
+        port: "{{ technitium_port }}"
+        delay: 5
+        timeout: 60
+
+    - name: Display access information
+      debug:
+        msg:
+          - "========================================"
+          - "Technitium DNS Server installed successfully!"
+          - "========================================"
+          - "Host: {{ inventory_hostname }}"
+          - "IP: {{ ansible_host }}"
+          - "Web Interface: http://{{ ansible_host }}:{{ technitium_port }}"
+          - "Default username: admin"
+          - "Default password: admin (CHANGE THIS IMMEDIATELY!)"
+          - "Version: {{ technitium_version }}"
+          - "Data directory: {{ technitium_data_dir }}"
+          - "========================================"

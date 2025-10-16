@@ -1,0 +1,28 @@
+resource "proxmox_vm_qemu" "server" {
+  count = 1
+  # VM configuration for server
+  # ...
+  ipconfig0 = "ip=192.168.20.100/24,gw=192.168.20.1"
+}
+
+resource "proxmox_vm_qemu" "agent" {
+  count = 1
+  # VM configuration for agent
+  # ...
+  ipconfig0 = "ip=192.168.20.101/24,gw=192.168.20.1"
+}
+
+data "template_file" "k3s_inventory" {
+  template = file("${path.module}/files/k3s_inventory.tmpl")
+
+  vars = {
+    servers = join(",", [for s in proxmox_vm_qemu.server : split(",", s.ipconfig0)[0]])
+    agents  = join(",", [for a in proxmox_vm_qemu.agent : split(",", a.ipconfig0)[0]])
+  }
+}
+
+
+resource "local_file" "k3s_inventory" {
+  content  = data.template_file.k3s_inventory.rendered
+  filename = "${path.module}/k3s_inventory.yml"
+}

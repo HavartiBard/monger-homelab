@@ -2,6 +2,10 @@ variable "ssh_key" {
   default = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJsd0qieGX7cTG6k0xSlECmD8F8a+jYlfBW68xUMMQMG"
 }
 
+variable pm_api_token_secret {
+  description = "The secret token for the Proxmox API"
+  default = "bc55e6bf-af66-43c9-b921-456aad58a94c"
+}
 variable "proxmox_host" {
     description = "List of Proxmox hosts"
     type = list(string)
@@ -22,6 +26,20 @@ variable "dns2_api_key" {
 }
 
 variable "vms" {
+    type = list(object({
+        name        = string
+        desc        = string
+        target_node = string
+        ip          = string
+        tags        = string
+        memory      = number
+        cores       = number
+        disk_size   = string
+    }))
+    default = []
+}
+
+variable "dns_vms" {
     type = list(object({
         name        = string
         desc        = string

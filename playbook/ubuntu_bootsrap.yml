@@ -83,14 +83,3 @@
 
     - name: Disable swap
       shell: sudo sed -i '/ swap / s/^\(.*\)$/#\1/g' /etc/fstab && sudo swapoff -a
-
-- name: Install PiHole
-- hosts: pihole
-  become: true
-  tasks:
-    - name: Install PiHole
-      shell: curl -sSL https://install.pi-hole.net | bash
-      args:
-        executable: /bin/bash
-      become_user: root
-      when: ansible_distribution == 'Ubuntu'
