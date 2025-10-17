@@ -71,6 +71,14 @@
         key: "{{ automation_ssh_key.content | b64decode }}"
         state: present
       when: automation_ssh_key is defined and automation_ssh_key.content is defined
+    
+    - name: Add automation container to known_hosts
+      shell: |
+        sudo -u automation ssh-keyscan -H 192.168.20.50 >> /home/automation/.ssh/known_hosts
+        sudo chown automation:automation /home/automation/.ssh/known_hosts
+      args:
+        creates: /home/automation/.ssh/known_hosts
+      when: automation_ssh_key is defined and automation_ssh_key.content is defined
 
     # ========================================
     # Phase 1: System Bootstrap
