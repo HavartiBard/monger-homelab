@@ -99,11 +99,11 @@
       args:
         creates: "{{ backup_dir }}.tar.gz"
 
-    - name: Copy backup directly to Unraid NAS (via scp to automation container)
+    - name: Pull backup to Unraid NAS (from automation container)
       shell: |
-        scp {{ backup_dir }}.tar.gz automation@192.168.20.50:{{ unraid_backup_path }}/{{ inventory_hostname }}-{{ backup_timestamp }}.tar.gz
-      args:
-        removes: "{{ backup_dir }}.tar.gz"
+        scp automation@{{ ansible_host }}:{{ backup_dir }}.tar.gz {{ unraid_backup_path }}/{{ inventory_hostname }}-{{ backup_timestamp }}.tar.gz
+      delegate_to: localhost
+      become: no
 
     - name: Cleanup remote backup
       file:
