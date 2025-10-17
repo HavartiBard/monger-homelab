@@ -1,0 +1,35 @@
+---
+# Global variables for all hosts
+# Software versions - keep in sync with terraform/vars.tf
+
+software_versions:
+  ansible_core: "2.17"
+  python_min: "3.10"
+  technitium_dns: "latest"
+  ubuntu_lts: "22.04"
+
+# Python packages required for Ansible 2.17+
+python_packages:
+  - python3
+  - python3-pip
+  - python3-apt
+  - python3-setuptools
+  - python3-packaging
+
+# Packages to remove (conflicts with Ansible 2.17+)
+python_packages_remove:
+  - python3-six
+
+# Common automation settings
+automation:
+  user: "automation"
+  backup_retention_days: 30
+  git_repo: "https://github.com/HavartiBard/monger-homelab.git"
+  
+# Network settings
+network:
+  unraid_ip: "192.168.20.5"
+  dns_servers:
+    - "192.168.20.29"
+    - "192.168.20.28"
+  domain: "lab.klsll.com"
