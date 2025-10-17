@@ -93,11 +93,11 @@
         dest: "{{ backup_dir }}/backup-info.txt"
 
     - name: Create compressed backup archive
-      archive:
-        path: "{{ backup_dir }}"
-        dest: "{{ backup_dir }}.tar.gz"
-        format: gz
-        remove: yes
+      shell: |
+        tar czf {{ backup_dir }}.tar.gz -C $(dirname {{ backup_dir }}) $(basename {{ backup_dir }})
+        rm -rf {{ backup_dir }}
+      args:
+        creates: "{{ backup_dir }}.tar.gz"
 
     - name: Create Unraid backup directory if using local mount
       file:
