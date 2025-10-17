@@ -1,0 +1,16 @@
+[
+  {
+    "type": "A",
+    "name": "unraid",
+    "content": "192.168.20.5",
+    "ttl": 3600,
+    "proxied": false
+  },
+  {
+    "type": "A",
+    "name": "proxmox",
+    "content": "192.168.20.100",
+    "ttl": 3600,
+    "proxied": false
+  }
+]

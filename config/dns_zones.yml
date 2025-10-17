@@ -1,146 +1,122 @@
 ---
 # DNS Zone Configuration for Technitium DNS Servers
-# This file defines all DNS zones and records
+# AUTO-GENERATED - DO NOT EDIT MANUALLY
+#
+# This file is generated from:
+#   - config/dns_records_manual.conf (human-edited)
+#   - config/dns_records_terraform.conf (auto-generated)
+#   - PTR records auto-generated from A records
+#
+# To make changes:
+#   1. Edit config/dns_records_manual.conf
+#   2. Run: python3 scripts/generate_dns_zones.py
+#   3. Deploy: ansible-playbook playbook/configure_dns_zones.yml
 
 dns_zones:
-  # Forward zone for Homelab
-  - name: "lab.klsll.com"
-    type: "Primary"
-    records:
-      # Infrastructure
-      - name: "pve1"
-        type: "A"
-        ttl: 3600
-        value: "192.168.20.100"
-      
-      - name: "pve2"
-        type: "A"
-        ttl: 3600
-        value: "192.168.20.101"
-      
-      - name: "unraid"
-        type: "A"
-        ttl: 3600
-        value: "192.168.20.5"
-      
-      # DNS Servers
-      - name: "dns1"
-        type: "A"
-        ttl: 3600
-        value: "192.168.20.29"  # Will change to .3 after cutover
-      
-      - name: "dns2"
-        type: "A"
-        ttl: 3600
-        value: "192.168.20.28"  # Will change to .2 after cutover
-      
-      # CNAMEs for services
-      - name: "proxmox"
-        type: "CNAME"
-        ttl: 3600
-        value: "pve1.lab.klsll.com."
-      
-      - name: "nas"
-        type: "CNAME"
-        ttl: 3600
-        value: "unraid.lab.klsll.com."
-      
-      # Add more records as needed
-      # - name: "service"
-      #   type: "A"
-      #   ttl: 3600
-      #   value: "192.168.20.x"
-
-  # Forward zone for IoT
-  - name: "iot.klsll.com"
-    type: "Primary"
-    records:
-      # DNS Servers on IoT VLAN
-      - name: "dns1"
-        type: "A"
-        ttl: 3600
-        value: "192.168.30.29"  # Will change to .3 after cutover
-      
-      - name: "dns2"
-        type: "A"
-        ttl: 3600
-        value: "192.168.30.28"  # Will change to .2 after cutover
-      
-      # Add IoT devices here
-      # - name: "smart-tv"
-      #   type: "A"
-      #   ttl: 3600
-      #   value: "192.168.30.10"
-
-  # Reverse zone for VLAN 20 (Homelab)
-  - name: "20.168.192.in-addr.arpa"
-    type: "Primary"
-    records:
-      - name: "100"
-        type: "PTR"
-        ttl: 3600
-        value: "pve1.lab.klsll.com."
-      
-      - name: "101"
-        type: "PTR"
-        ttl: 3600
-        value: "pve2.lab.klsll.com."
-      
-      - name: "5"
-        type: "PTR"
-        ttl: 3600
-        value: "unraid.lab.klsll.com."
-      
-      - name: "29"
-        type: "PTR"
-        ttl: 3600
-        value: "dns1.lab.klsll.com."
-      
-      - name: "28"
-        type: "PTR"
-        ttl: 3600
-        value: "dns2.lab.klsll.com."
-
-  # Reverse zone for VLAN 30 (IoT)
-  - name: "30.168.192.in-addr.arpa"
-    type: "Primary"
-    records:
-      - name: "29"
-        type: "PTR"
-        ttl: 3600
-        value: "dns1.iot.klsll.com."
-      
-      - name: "28"
-        type: "PTR"
-        ttl: 3600
-        value: "dns2.iot.klsll.com."
-
-# DNS Forwarders Configuration
+- name: 20.168.192.in-addr.arpa
+  type: Primary
+  records:
+  - name: '100'
+    type: PTR
+    value: pve1.lab.klsll.com.
+    ttl: 3600
+  - name: '101'
+    type: PTR
+    value: pve2.lab.klsll.com.
+    ttl: 3600
+  - name: '5'
+    type: PTR
+    value: unraid.lab.klsll.com.
+    ttl: 3600
+  - name: '29'
+    type: PTR
+    value: dns1.lab.klsll.com.
+    ttl: 3600
+  - name: '28'
+    type: PTR
+    value: dns2.lab.klsll.com.
+    ttl: 3600
+  - name: '5'
+    type: PTR
+    value: unraid.klsll.com.
+    ttl: 3600
+  - name: '100'
+    type: PTR
+    value: proxmox.klsll.com.
+    ttl: 3600
+- name: 30.168.192.in-addr.arpa
+  type: Primary
+  records:
+  - name: '29'
+    type: PTR
+    value: dns1.iot.klsll.com.
+    ttl: 3600
+  - name: '28'
+    type: PTR
+    value: dns2.iot.klsll.com.
+    ttl: 3600
+- name: iot.klsll.com
+  type: Primary
+  records:
+  - name: dns1
+    type: A
+    value: 192.168.30.29
+    ttl: 3600
+  - name: dns2
+    type: A
+    value: 192.168.30.28
+    ttl: 3600
+- name: klsll.com
+  type: Primary
+  records:
+  - name: unraid
+    type: A
+    value: 192.168.20.5
+    ttl: 3600
+  - name: proxmox
+    type: A
+    value: 192.168.20.100
+    ttl: 3600
+- name: lab.klsll.com
+  type: Primary
+  records:
+  - name: pve1
+    type: A
+    value: 192.168.20.100
+    ttl: 3600
+  - name: pve2
+    type: A
+    value: 192.168.20.101
+    ttl: 3600
+  - name: unraid
+    type: A
+    value: 192.168.20.5
+    ttl: 3600
+  - name: dns1
+    type: A
+    value: 192.168.20.29
+    ttl: 3600
+  - name: dns2
+    type: A
+    value: 192.168.20.28
+    ttl: 3600
+  - name: proxmox
+    type: CNAME
+    value: pve1.lab.klsll.com.
+    ttl: 3600
+  - name: nas
+    type: CNAME
+    value: unraid.lab.klsll.com.
+    ttl: 3600
 dns_forwarders:
-  # Public DNS servers for upstream resolution
-  - address: "1.1.1.1"
-    protocol: "Udp"
-    
-  - address: "1.0.0.1"
-    protocol: "Udp"
-    
-  # Conditional forwarders (if needed)
-  # - domain: "example.com"
-  #   forwarder: "192.168.1.1"
-  #   protocol: "Udp"
-
-# DNS Settings
+- address: 1.1.1.1
+  protocol: Udp
+- address: 1.0.0.1
+  protocol: Udp
 dns_settings:
-  # Enable DNS-over-HTTPS
   enable_doh: false
-  
-  # Enable DNSSEC validation
   enable_dnssec: true
-  
-  # Cache settings
   cache_minimum_ttl: 60
   cache_maximum_ttl: 86400
-  
-  # Logging
   enable_query_logging: false
   log_queries_to_file: false
