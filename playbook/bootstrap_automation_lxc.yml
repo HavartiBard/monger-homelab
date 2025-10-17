@@ -1,0 +1,202 @@
+---
+# Bootstrap Automation LXC Container
+# Sets up Ansible, Git, and automation scripts
+
+- name: Bootstrap Automation Container
+  hosts: automation
+  become: yes
+  
+  vars:
+    ansible_become_flags: '-H -S'  # Fix ACL issues when becoming unprivileged user
+    repo_url: "https://github.com/HavartiBard/monger-homelab.git"  # Update with your repo
+    repo_dir: "/opt/automation/monger-homelab"
+    automation_user: "automation"  # Service account for running jobs
+    unraid_ip: "192.168.20.5"
+    unraid_share: "backups"
+    backup_mount: "/mnt/unraid-backups"
+    
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+    
+    - name: Install required packages
+      apt:
+        name:
+          - acl  # Required for Ansible become operations
+          - ansible
+          - git
+          - python3
+          - python3-pip
+          - python3-venv
+          - nfs-common
+          - vim
+          - curl
+          - wget
+          - htop
+        state: present
+    
+    - name: Install Python packages for Ansible
+      pip:
+        name:
+          - pyyaml
+          - jinja2
+          - netaddr
+        state: present
+    
+    - name: Create automation user
+      user:
+        name: "{{ automation_user }}"
+        comment: "Automation Service Account"
+        shell: /bin/bash
+        create_home: yes
+        groups: sudo
+        append: yes
+    
+    - name: Setup passwordless sudo for automation user
+      copy:
+        content: "{{ automation_user }} ALL=(ALL) NOPASSWD:ALL\n"
+        dest: "/etc/sudoers.d/{{ automation_user }}"
+        mode: '0440'
+        validate: 'visudo -cf %s'
+    
+    - name: Create SSH directory for automation user
+      file:
+        path: "/home/{{ automation_user }}/.ssh"
+        state: directory
+        owner: "{{ automation_user }}"
+        group: "{{ automation_user }}"
+        mode: '0700'
+    
+    - name: Generate SSH key for automation user
+      user:
+        name: "{{ automation_user }}"
+        generate_ssh_key: yes
+        ssh_key_type: ed25519
+        ssh_key_comment: "automation@homelab"
+    
+    - name: Create automation directory
+      file:
+        path: "/opt/automation"
+        state: directory
+        owner: "{{ automation_user }}"
+        group: "{{ automation_user }}"
+        mode: '0755'
+    
+    - name: Clone repository
+      git:
+        repo: "{{ repo_url }}"
+        dest: "{{ repo_dir }}"
+        version: main
+        force: yes
+        recursive: no  # Skip submodules - they require SSH keys
+      become_user: "{{ automation_user }}"
+      ignore_errors: yes  # In case repo is private
+    
+    - name: Verify backup mount point exists
+      stat:
+        path: "{{ backup_mount }}"
+      register: backup_mount_stat
+      failed_when: false
+    
+    - name: Warn if backup mount not available
+      debug:
+        msg: |
+          ⚠️  Backup mount {{ backup_mount }} not found!
+          Run: bash scripts/setup_lxc_bind_mount.sh
+      when: not backup_mount_stat.stat.exists
+    
+    - name: Create backup directory on Unraid
+      file:
+        path: "{{ backup_mount }}/technitium"
+        state: directory
+        mode: '0755'
+      when: backup_mount_stat.stat.exists
+    
+    - name: Setup cron job for daily backups
+      cron:
+        name: "Daily DNS Backup"
+        minute: "0"
+        hour: "2"
+        job: "cd {{ repo_dir }} && /usr/bin/ansible-playbook -i inventory/raclette/inventory.ini playbook/technitium_daily_backup.yml -u {{ automation_user }} >> /var/log/dns-backup.log 2>&1"
+        user: "{{ automation_user }}"
+        state: present
+    
+    - name: Setup cron job for git pull
+      cron:
+        name: "Git Pull Latest Configs"
+        minute: "0"
+        hour: "1"
+        job: "cd {{ repo_dir }} && /usr/bin/git pull >> /var/log/git-pull.log 2>&1"
+        user: "{{ automation_user }}"
+        state: present
+    
+    - name: Setup logrotate for automation logs
+      copy:
+        content: |
+          /var/log/dns-backup.log
+          /var/log/dns-deploy.log
+          /var/log/git-pull.log {
+              daily
+              rotate 7
+              compress
+              missingok
+              notifempty
+          }
+        dest: /etc/logrotate.d/automation
+        mode: '0644'
+    
+    - name: Read automation user SSH public key
+      slurp:
+        src: "/home/{{ automation_user }}/.ssh/id_ed25519.pub"
+      register: ssh_key
+    
+    - name: Add automation SSH key to DNS servers
+      authorized_key:
+        user: automation
+        key: "{{ ssh_key.content | b64decode }}"
+        state: present
+      delegate_to: "{{ item }}"
+      loop:
+        - 192.168.20.29  # technitium-dns1
+        - 192.168.20.28  # technitium-dns2
+      ignore_errors: yes  # In case we can't reach DNS servers yet
+    
+    - name: Show setup summary
+      debug:
+        msg: |
+          ========================================
+          ✅ Automation Container Setup Complete
+          ========================================
+          
+          Container IP: {{ ansible_host }}
+          Automation User: {{ automation_user }}
+          Repository: {{ repo_dir }}
+          Backup Mount: {{ backup_mount }}
+          
+          SSH Public Key:
+          {{ ssh_key.content | b64decode }}
+          
+          ✅ SSH key automatically added to DNS servers!
+          
+          Next Steps:
+          1. Test Ansible connectivity:
+             ssh {{ automation_user }}@{{ ansible_host }}
+             cd {{ repo_dir }}
+             ansible -i inventory/raclette/inventory.ini all -m ping
+          
+          3. Test manual backup:
+             ansible-playbook -i inventory/raclette/inventory.ini playbook/technitium_daily_backup.yml
+          
+          4. Verify cron jobs:
+             crontab -l
+          
+          Cron Schedule:
+          - Daily backup: 2:00 AM
+          - Git pull: 1:00 AM
+          
+          Logs:
+          - Backups: /var/log/dns-backup.log
+          - Git: /var/log/git-pull.log
+          ========================================
