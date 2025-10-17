@@ -65,3 +65,20 @@ variable "dns_use_legacy_ips" {
     description = "Use legacy DNS IPs (192.168.20.2/3) instead of new IPs (192.168.20.28/29)"
     default     = false  # Start with temp IPs, switch to true for cutover
 }
+
+# Software versions for consistency across infrastructure
+variable "software_versions" {
+    type = object({
+        ansible_core    = string
+        python_min      = string
+        technitium_dns  = string
+        ubuntu_lts      = string
+    })
+    description = "Standard software versions used across the homelab"
+    default = {
+        ansible_core    = "2.17"      # Ansible core version
+        python_min      = "3.10"      # Minimum Python version
+        technitium_dns  = "latest"    # Technitium DNS version
+        ubuntu_lts      = "22.04"     # Ubuntu LTS version
+    }
+}

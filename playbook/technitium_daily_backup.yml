@@ -76,13 +76,19 @@
         - opt_technitium_dir is not skipped
         - opt_technitium_dir.stat.exists
 
+    - name: Get current date/time
+      command: date --iso-8601=seconds
+      register: current_datetime
+      changed_when: false
+    
     - name: Create backup metadata
       copy:
         content: |
           Hostname: {{ inventory_hostname }}
           IP Address: {{ ansible_host }}
-          Backup Date: {{ ansible_date_time.iso8601 }}
-          Ansible User: {{ ansible_user }}
+          Backup Date: {{ current_datetime.stdout }}
+          Backup Timestamp: {{ backup_timestamp }}
+          Ansible User: {{ ansible_user | default('automation') }}
           Docker Container: {{ container_name.stdout | default('N/A') }}
         dest: "{{ backup_dir }}/backup-info.txt"
 
