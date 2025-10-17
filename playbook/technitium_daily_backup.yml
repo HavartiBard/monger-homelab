@@ -99,39 +99,16 @@
       args:
         creates: "{{ backup_dir }}.tar.gz"
 
-    - name: Create Unraid backup directory if using local mount
-      file:
-        path: "{{ unraid_backup_path }}"
-        state: directory
-        mode: '0755'
-      delegate_to: localhost
-      become: no
-      run_once: yes
-
-    - name: Fetch backup from remote server to Ansible controller
-      fetch:
-        src: "{{ backup_dir }}.tar.gz"
-        dest: "/tmp/{{ inventory_hostname }}-{{ backup_timestamp }}.tar.gz"
-        flat: yes
-
-    - name: Copy backup to Unraid NAS
-      copy:
-        src: "/tmp/{{ inventory_hostname }}-{{ backup_timestamp }}.tar.gz"
-        dest: "{{ unraid_backup_path }}/{{ inventory_hostname }}-{{ backup_timestamp }}.tar.gz"
-      delegate_to: localhost
-      become: no
+    - name: Copy backup directly to Unraid NAS (via scp to automation container)
+      shell: |
+        scp {{ backup_dir }}.tar.gz automation@192.168.20.50:{{ unraid_backup_path }}/{{ inventory_hostname }}-{{ backup_timestamp }}.tar.gz
+      args:
+        removes: "{{ backup_dir }}.tar.gz"
 
     - name: Cleanup remote backup
       file:
         path: "{{ backup_dir }}.tar.gz"
         state: absent
-
-    - name: Cleanup local temp backup
-      file:
-        path: "/tmp/{{ inventory_hostname }}-{{ backup_timestamp }}.tar.gz"
-        state: absent
-      delegate_to: localhost
-      become: no
 
     - name: Display backup location
       debug:
