@@ -1,0 +1,72 @@
+---
+# DHCP Scope Configuration for Technitium DNS Servers
+# This file defines all DHCP scopes and will be deployed to both DNS servers
+
+dhcp_scopes:
+  # VLAN 20 - Homelab Network
+  - name: "Homelab VLAN 20"
+    network: "192.168.20.0"
+    subnet_mask: "255.255.255.0"
+    start_ip: "192.168.20.50"
+    end_ip: "192.168.20.250"
+    lease_time: "86400"  # 24 hours in seconds
+    gateway: "192.168.20.1"
+    dns_servers:
+      - "192.168.20.29"
+      - "192.168.20.28"
+    domain_name: "lab.klsll.com"
+    enabled: false  # Set to true when ready to enable DHCP
+    
+    # Static reservations for VLAN 20
+    reservations:
+      - hostname: "pve1"
+        mac_address: "70-70-FC-00-77-A7"  # Replace with actual MAC
+        ip_address: "192.168.20.100"
+      - hostname: "pve2"
+        mac_address: "B0-41-6F-0C-49-35"  # Replace with actual MAC
+        ip_address: "192.168.20.101"
+      - hostname: "unraid"
+        mac_address: "74-56-3C-B3-E7-FD"  # Replace with actual MAC
+        ip_address: "192.168.20.5"
+      # Add more reservations as needed
+
+  # VLAN 30 - IoT Network
+  - name: "IoT VLAN 30"
+    network: "192.168.30.0"
+    subnet_mask: "255.255.255.0"
+    start_ip: "192.168.30.50"
+    end_ip: "192.168.30.250"
+    lease_time: "86400"  # 24 hours in seconds
+    gateway: "192.168.30.1"
+    dns_servers:
+      - "192.168.30.29"
+      - "192.168.30.28"
+    domain_name: "iot.klsll.com"
+    enabled: false  # Set to true when ready to enable DHCP
+    
+    # Static reservations for VLAN 30
+    reservations:
+      # Add IoT device reservations here
+      # - hostname: "smart-tv"
+      #   mac_address: "XX:XX:XX:XX:XX:XX"
+      #   ip_address: "192.168.30.10"
+
+# DHCP Failover Configuration
+dhcp_failover:
+  enabled: true
+  primary_server: "192.168.20.29"
+  secondary_server: "192.168.20.28"
+  shared_secret: "C8@NDve_EtMPvadVMbR8" 
+  
+# DNS Server Roles
+dns_servers:
+  primary:
+    hostname: "technitium-dns1"
+    vlan20_ip: "192.168.20.29"
+    vlan30_ip: "192.168.30.29"
+    role: "primary"
+  secondary:
+    hostname: "technitium-dns2"
+    vlan20_ip: "192.168.20.28"
+    vlan30_ip: "192.168.30.28"
+    role: "secondary"

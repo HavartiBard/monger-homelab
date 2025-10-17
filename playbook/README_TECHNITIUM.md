@@ -45,8 +45,8 @@ ansible -i inventory/raclette/hosts.ini technitium_dns -m ping
 ## Post-Installation
 
 ### Access Web Interfaces:
-- **DNS1**: http://192.168.20.13:5380
-- **DNS2**: http://192.168.20.12:5380
+- **DNS1**: http://192.168.20.29:5380
+- **DNS2**: http://192.168.20.28:5380
 
 ### Default Credentials:
 - Username: `admin`
@@ -60,27 +60,30 @@ To upgrade Technitium:
 1. Edit `technitium_version` in `technitium_dns.yml`
 2. Re-run the playbook
 
-Current version: **13.0.2**
+Current version: **latest** (auto-updates to newest stable)
 
 ## Troubleshooting
 
 ### Check if Technitium is running:
 ```bash
-ssh james@192.168.20.13 "docker ps | grep technitium"
+ssh james@192.168.20.29 "docker ps | grep technitium"
+ssh james@192.168.20.28 "docker ps | grep technitium"
 ```
 
 ### View Technitium logs:
 ```bash
-ssh james@192.168.20.13 "docker logs technitium"
+ssh james@192.168.20.29 "docker logs technitium"
+ssh james@192.168.20.28 "docker logs technitium"
 ```
 
 ### Restart Technitium:
 ```bash
-ssh james@192.168.20.13 "docker restart technitium"
+ssh james@192.168.20.29 "docker restart technitium"
+ssh james@192.168.20.28 "docker restart technitium"
 ```
 
 ### Check DNS resolution:
 ```bash
-dig @192.168.20.13 google.com
-dig @192.168.20.12 google.com
+dig @192.168.20.29 google.com
+dig @192.168.20.28 google.com
 ```

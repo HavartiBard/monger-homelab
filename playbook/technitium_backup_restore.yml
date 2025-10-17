@@ -1,0 +1,195 @@
+---
+- name: Backup Technitium DNS Configuration from Old Server
+  hosts: dns_old  # Old server (VM 100)
+  become: yes
+  vars:
+    backup_dir: "/tmp/technitium-backup"
+    local_backup_dir: "./technitium-backup-{{ ansible_date_time.date }}"
+    
+  tasks:
+    - name: Create backup directory on old server
+      file:
+        path: "{{ backup_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Check if Technitium is running in Docker
+      shell: docker ps | grep -i technitium || docker ps -a | grep -i technitium
+      register: docker_check
+      ignore_errors: yes
+      changed_when: false
+
+    - name: Get Technitium container name
+      shell: docker ps -a --filter "ancestor=technitium/dns-server" --format "{{ '{{' }}.Names{{ '}}' }}" | head -1
+      register: container_name
+      when: docker_check.rc == 0
+      changed_when: false
+
+    - name: Backup Technitium data directory from Docker volume
+      shell: |
+        docker cp {{ container_name.stdout }}:/etc/dns {{ backup_dir }}/dns-data
+      when: 
+        - docker_check.rc == 0
+        - container_name.stdout != ""
+      ignore_errors: yes
+
+    - name: Check for native Technitium installation
+      stat:
+        path: /etc/dns
+      register: native_dns_dir
+
+    - name: Backup native Technitium data directory
+      synchronize:
+        src: /etc/dns/
+        dest: "{{ backup_dir }}/dns-data/"
+        mode: pull
+      when: 
+        - native_dns_dir.stat.exists
+        - docker_check.rc != 0
+      delegate_to: "{{ inventory_hostname }}"
+
+    - name: Create backup archive
+      archive:
+        path: "{{ backup_dir }}/dns-data"
+        dest: "{{ backup_dir }}/technitium-backup.tar.gz"
+        format: gz
+      when: backup_dir is defined
+
+    - name: Fetch backup to local machine
+      fetch:
+        src: "{{ backup_dir }}/technitium-backup.tar.gz"
+        dest: "{{ local_backup_dir }}/"
+        flat: yes
+      when: backup_dir is defined
+
+    - name: Display backup location
+      debug:
+        msg: "Backup saved to {{ local_backup_dir }}/technitium-backup.tar.gz"
+
+    - name: Cleanup remote backup directory
+      file:
+        path: "{{ backup_dir }}"
+        state: absent
+
+
+- name: Restore Technitium DNS Configuration to New Servers
+  hosts: technitium_dns  # New servers (VM 105, 106)
+  become: yes
+  serial: 1  # Do one at a time
+  vars:
+    local_backup_dir: "./technitium-backup-{{ ansible_date_time.date }}"
+    remote_restore_dir: "/tmp/technitium-restore"
+    technitium_data_dir: "/opt/technitium"
+    
+  tasks:
+    - name: Check if backup file exists locally
+      stat:
+        path: "{{ local_backup_dir }}/technitium-backup.tar.gz"
+      delegate_to: localhost
+      register: backup_file
+      become: no
+
+    - name: Fail if backup doesn't exist
+      fail:
+        msg: "Backup file not found at {{ local_backup_dir }}/technitium-backup.tar.gz. Run backup first!"
+      when: not backup_file.stat.exists
+
+    - name: Create remote restore directory
+      file:
+        path: "{{ remote_restore_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Copy backup to new server
+      copy:
+        src: "{{ local_backup_dir }}/technitium-backup.tar.gz"
+        dest: "{{ remote_restore_dir }}/technitium-backup.tar.gz"
+
+    - name: Extract backup
+      unarchive:
+        src: "{{ remote_restore_dir }}/technitium-backup.tar.gz"
+        dest: "{{ remote_restore_dir }}/"
+        remote_src: yes
+
+    - name: Stop Technitium container
+      docker_container:
+        name: technitium
+        state: stopped
+      ignore_errors: yes
+
+    - name: Backup existing data directory (if any)
+      shell: |
+        if [ -d "{{ technitium_data_dir }}" ]; then
+          mv {{ technitium_data_dir }} {{ technitium_data_dir }}.bak.$(date +%Y%m%d-%H%M%S)
+        fi
+      args:
+        executable: /bin/bash
+
+    - name: Create Technitium data directory
+      file:
+        path: "{{ technitium_data_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Restore configuration files
+      synchronize:
+        src: "{{ remote_restore_dir }}/dns-data/"
+        dest: "{{ technitium_data_dir }}/"
+      delegate_to: "{{ inventory_hostname }}"
+
+    - name: Set correct permissions
+      file:
+        path: "{{ technitium_data_dir }}"
+        owner: root
+        group: root
+        recurse: yes
+
+    - name: Start Technitium container
+      docker_container:
+        name: technitium
+        state: started
+
+    - name: Wait for Technitium to start
+      wait_for:
+        port: 5380
+        delay: 5
+        timeout: 60
+
+    - name: Cleanup restore directory
+      file:
+        path: "{{ remote_restore_dir }}"
+        state: absent
+
+    - name: Display success message
+      debug:
+        msg: "Configuration restored to {{ inventory_hostname }}. Access at http://{{ ansible_host }}:5380"
+
+
+- name: Verify Restored Configuration
+  hosts: technitium_dns
+  become: yes
+  gather_facts: no
+  
+  tasks:
+    - name: Check Technitium container status
+      shell: docker ps | grep technitium
+      register: container_status
+      changed_when: false
+
+    - name: Display container status
+      debug:
+        msg: "{{ container_status.stdout }}"
+
+    - name: Test DNS resolution
+      shell: dig @127.0.0.1 google.com +short
+      register: dns_test
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Display DNS test result
+      debug:
+        msg: "DNS resolution test: {{ dns_test.stdout if dns_test.rc == 0 else 'FAILED' }}"
+
+    - name: Display web interface URLs
+      debug:
+        msg: "Web interface: http://{{ ansible_host }}:5380 (use your existing admin credentials)"

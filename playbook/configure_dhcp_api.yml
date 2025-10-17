@@ -1,0 +1,124 @@
+---
+- name: Configure DHCP Scopes via Technitium API
+  hosts: technitium_dns
+  gather_facts: yes
+  vars_files:
+    - /mnt/d/cluster/monger-homelab/config/dhcp_scopes.yml
+  
+  vars:
+    technitium_port: 5380
+    # API tokens for each server
+    technitium_tokens:
+      technitium-dns1: "f6253f0f9c4bd2c0952eb5d8b807b4a44550d5c785789d906e7ef1b94a666ed8"
+      technitium-dns2: "819048ea9356f23157ab915dc4e8f9e2927ccaa206a207f61982c41da8842615"
+    
+  tasks:
+    - name: Set API token for this server
+      set_fact:
+        api_token: "{{ technitium_tokens[inventory_hostname] }}"
+    
+    - name: Verify DHCP config loaded
+      debug:
+        msg: "Configuring {{ dhcp_scopes | length }} DHCP scopes on {{ inventory_hostname }} ({{ ansible_host }})"
+    
+    - name: Create DHCP scopes via API
+      uri:
+        url: "http://{{ ansible_host }}:{{ technitium_port }}/api/dhcp/scopes/set"
+        method: POST
+        body_format: form-urlencoded
+        body:
+          token: "{{ api_token }}"
+          name: "{{ item.name }}"
+          startingAddress: "{{ item.start_ip }}"
+          endingAddress: "{{ item.end_ip }}"
+          subnetMask: "{{ item.subnet_mask }}"
+          leaseTimeDays: "1"
+          leaseTimeHours: "0"
+          leaseTimeMinutes: "0"
+          offerDelayTime: "0"
+          domainName: "{{ item.domain_name }}"
+          dnsUpdates: "false"
+          dnsTtl: "900"
+          serverAddress: "{{ ansible_host }}"
+          serverHostName: "{{ inventory_hostname }}"
+          routerAddress: "{{ item.gateway }}"
+          useThisDnsServer: "false"
+          dnsServers: "{{ item.dns_servers | join(',') }}"
+        status_code: [200, 201]
+        return_content: yes
+      loop: "{{ dhcp_scopes }}"
+      loop_control:
+        label: "{{ item.name }}"
+      register: scope_creation
+    
+    - name: Display scope creation results
+      debug:
+        msg: "Created scope: {{ item.item.name }}"
+      loop: "{{ scope_creation.results }}"
+      loop_control:
+        label: "{{ item.item.name }}"
+      when: item.status == 200 or item.status == 201
+    
+    - name: Add DHCP reservations for each scope
+      include_tasks: add_dhcp_reservations.yml
+      loop: "{{ dhcp_scopes }}"
+      loop_control:
+        loop_var: scope
+        label: "{{ scope.name }}"
+      when: 
+        - scope.reservations is defined
+        - scope.reservations is not none
+        - scope.reservations | length > 0
+    
+    - name: Display success message
+      debug:
+        msg: |
+          ========================================
+          ✅ DHCP Configuration Complete
+          ========================================
+          Server: {{ inventory_hostname }} ({{ ansible_host }})
+          Scopes Created: {{ dhcp_scopes | length }}
+          
+          Web UI: http://{{ ansible_host }}:5380
+          
+          Next Steps:
+          1. Verify scopes in web UI (DHCP → Scopes)
+          2. Configure DHCP failover between servers
+          3. Enable scopes when ready to activate DHCP
+          ========================================
+
+- name: Summary
+  hosts: localhost
+  gather_facts: no
+  vars_files:
+    - /mnt/d/cluster/monger-homelab/config/dhcp_scopes.yml
+  
+  tasks:
+    - name: Display completion message
+      debug:
+        msg: |
+          ========================================
+          ✅ DHCP Configuration Complete on All Servers
+          ========================================
+          
+          Scopes Configured: {{ dhcp_scopes | length }}
+          
+          Web UIs:
+          - Primary: http://192.168.20.29:5380
+          - Secondary: http://192.168.20.28:5380
+          
+          Next Steps:
+          1. Log into both web UIs
+          2. Go to DHCP → Scopes
+          3. Verify all scopes are present
+          4. Configure DHCP failover:
+             - Edit each scope
+             - Enable "Failover"
+             - Set peer IP and shared secret
+          5. Enable scopes when ready
+          
+          Failover Config:
+          - Primary: 192.168.20.29
+          - Secondary: 192.168.20.28
+          - Shared Secret: {{ dhcp_failover.shared_secret }}
+          ========================================

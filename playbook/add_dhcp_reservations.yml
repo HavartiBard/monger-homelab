@@ -1,0 +1,19 @@
+---
+- name: Add reservation {{ reservation.hostname }}
+  uri:
+    url: "http://{{ ansible_host }}:{{ technitium_port }}/api/dhcp/scopes/reservedLeases/set"
+    method: POST
+    body_format: form-urlencoded
+    body:
+      token: "{{ api_token }}"
+      scope: "{{ scope.name }}"
+      hostName: "{{ reservation.hostname }}"
+      hardwareAddress: "{{ reservation.mac_address }}"
+      address: "{{ reservation.ip_address }}"
+      comments: "Reserved via Ansible"
+    status_code: [200, 201]
+    return_content: yes
+  loop: "{{ scope.reservations }}"
+  loop_control:
+    loop_var: reservation
+    label: "{{ reservation.hostname }} ({{ reservation.ip_address }})"

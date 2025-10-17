@@ -1,0 +1,137 @@
+---
+- name: Configure DNS Zones via Technitium API
+  hosts: technitium_dns
+  gather_facts: yes
+  vars_files:
+    - /mnt/d/cluster/monger-homelab/config/dns_zones.yml
+  
+  vars:
+    technitium_port: 5380
+    # API tokens for each server
+    technitium_tokens:
+      technitium-dns1: "f6253f0f9c4bd2c0952eb5d8b807b4a44550d5c785789d906e7ef1b94a666ed8"
+      technitium-dns2: "819048ea9356f23157ab915dc4e8f9e2927ccaa206a207f61982c41da8842615"
+    
+  tasks:
+    - name: Set API token for this server
+      set_fact:
+        api_token: "{{ technitium_tokens[inventory_hostname] }}"
+    
+    - name: Display configuration info
+      debug:
+        msg: "Configuring {{ dns_zones | length }} DNS zones on {{ inventory_hostname }} ({{ ansible_host }})"
+    
+    - name: Check if zone exists before creating
+      uri:
+        url: "http://{{ ansible_host }}:{{ technitium_port }}/api/zones/list"
+        method: GET
+        body_format: form-urlencoded
+        body:
+          token: "{{ api_token }}"
+        status_code: [200]
+        return_content: yes
+      register: existing_zones
+    
+    - name: Create DNS zones via API (skip if exists)
+      uri:
+        url: "http://{{ ansible_host }}:{{ technitium_port }}/api/zones/create"
+        method: POST
+        body_format: form-urlencoded
+        body:
+          token: "{{ api_token }}"
+          zone: "{{ item.name }}"
+          type: "{{ item.type }}"
+        status_code: [200, 400]  # 400 if zone already exists
+        return_content: yes
+      loop: "{{ dns_zones }}"
+      loop_control:
+        label: "{{ item.name }}"
+      register: zone_creation
+      when: item.name not in (existing_zones.json.response.zones | map(attribute='name') | list)
+    
+    - name: Display zone creation results
+      debug:
+        msg: "Zone {{ item.item.name }}: {{ 'Created' if item.status == 200 else 'Already exists' }}"
+      loop: "{{ zone_creation.results }}"
+      loop_control:
+        label: "{{ item.item.name }}"
+    
+    - name: Add DNS records for each zone
+      include_tasks: add_dns_records.yml
+      loop: "{{ dns_zones }}"
+      loop_control:
+        loop_var: zone
+        label: "{{ zone.name }}"
+      when: 
+        - zone.records is defined
+        - zone.records is not none
+        - zone.records | length > 0
+    
+    - name: Configure DNS forwarders
+      uri:
+        url: "http://{{ ansible_host }}:{{ technitium_port }}/api/settings/set"
+        method: POST
+        body_format: form-urlencoded
+        body:
+          token: "{{ api_token }}"
+          forwarders: "{{ dns_forwarders | map(attribute='address') | join(',') }}"
+          forwarderProtocol: "{{ dns_forwarders[0].protocol }}"
+        status_code: [200]
+        return_content: yes
+      when: dns_forwarders is defined
+      register: forwarder_config
+    
+    - name: Display success message
+      debug:
+        msg: |
+          ========================================
+          ✅ DNS Configuration Complete
+          ========================================
+          Server: {{ inventory_hostname }} ({{ ansible_host }})
+          Zones Created: {{ dns_zones | length }}
+          Forwarders: {{ dns_forwarders | map(attribute='address') | join(', ') if dns_forwarders is defined else 'None' }}
+          
+          Web UI: http://{{ ansible_host }}:5380
+          
+          Next Steps:
+          1. Verify zones in web UI (Zones)
+          2. Test DNS resolution
+          3. Verify reverse lookups work
+          ========================================
+
+- name: Summary
+  hosts: localhost
+  gather_facts: no
+  vars_files:
+    - /mnt/d/cluster/monger-homelab/config/dns_zones.yml
+  
+  tasks:
+    - name: Display completion message
+      debug:
+        msg: |
+          ========================================
+          ✅ DNS Zone Configuration Complete on All Servers
+          ========================================
+          
+          Zones Configured: {{ dns_zones | length }}
+          
+          Forward Zones:
+          {{ dns_zones | selectattr('type', 'equalto', 'Primary') | rejectattr('name', 'search', 'in-addr.arpa') | map(attribute='name') | join('\n  - ') | indent(2) }}
+          
+          Reverse Zones:
+          {{ dns_zones | selectattr('name', 'search', 'in-addr.arpa') | map(attribute='name') | join('\n  - ') | indent(2) }}
+          
+          Web UIs:
+          - Primary: http://192.168.20.29:5380
+          - Secondary: http://192.168.20.28:5380
+          
+          Testing:
+          # Test forward lookup
+          dig @192.168.20.29 pve1.lab.klsll.com
+          
+          # Test reverse lookup
+          dig @192.168.20.29 -x 192.168.20.100
+          
+          # Test from client
+          nslookup pve1.lab.klsll.com 192.168.20.29
+          ========================================

@@ -1,0 +1,131 @@
+---
+- name: Configure VLAN 30 Interface on Technitium DNS Servers
+  hosts: technitium_dns
+  become: yes
+  vars:
+    vlan_id: 30
+    vlan_interface: "ens18.30"  # Adjust if your interface name is different
+    # IP addresses for VLAN 30
+    dns1_vlan30_ip: "192.168.30.29"
+    dns2_vlan30_ip: "192.168.30.28"
+    vlan30_netmask: "255.255.255.0"
+    vlan30_gateway: "192.168.30.1"
+    
+  tasks:
+    - name: Install VLAN package
+      apt:
+        name: vlan
+        state: present
+        update_cache: yes
+
+    - name: Load 8021q kernel module
+      modprobe:
+        name: 8021q
+        state: present
+
+    - name: Ensure 8021q module loads on boot
+      lineinfile:
+        path: /etc/modules
+        line: "8021q"
+        create: yes
+
+    - name: Get primary network interface name
+      shell: ip route | grep default | awk '{print $5}' | head -1
+      register: primary_interface
+      changed_when: false
+
+    - name: Display primary interface
+      debug:
+        msg: "Primary interface: {{ primary_interface.stdout }}"
+
+    - name: Set VLAN 30 IP based on hostname
+      set_fact:
+        vlan30_ip: "{{ dns1_vlan30_ip if inventory_hostname == 'technitium-dns1' else dns2_vlan30_ip }}"
+
+    - name: Create netplan configuration for VLAN 30
+      copy:
+        content: |
+          # This file is managed by Ansible
+          # VLAN 30 configuration for IoT network
+          network:
+            version: 2
+            vlans:
+              {{ primary_interface.stdout }}.{{ vlan_id }}:
+                id: {{ vlan_id }}
+                link: {{ primary_interface.stdout }}
+                addresses:
+                  - {{ vlan30_ip }}/24
+                routes:
+                  - to: 192.168.30.0/24
+                    via: {{ vlan30_gateway }}
+                    metric: 100
+        dest: /etc/netplan/60-vlan30.yaml
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Apply netplan configuration
+      command: netplan apply
+      async: 45
+      poll: 0
+      register: netplan_apply
+
+    - name: Wait for netplan to apply
+      async_status:
+        jid: "{{ netplan_apply.ansible_job_id }}"
+      register: job_result
+      until: job_result.finished
+      retries: 10
+      delay: 5
+
+    - name: Verify VLAN interface is up
+      shell: ip addr show {{ primary_interface.stdout }}.{{ vlan_id }}
+      register: vlan_interface_check
+      changed_when: false
+      failed_when: vlan_interface_check.rc != 0
+
+    - name: Display VLAN interface configuration
+      debug:
+        msg: "{{ vlan_interface_check.stdout_lines }}"
+
+    - name: Test connectivity to VLAN 30 gateway
+      command: ping -c 3 {{ vlan30_gateway }}
+      register: ping_test
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Display ping test result
+      debug:
+        msg: "{{ 'VLAN 30 gateway reachable' if ping_test.rc == 0 else 'WARNING: Cannot reach VLAN 30 gateway' }}"
+
+    - name: Update Docker container to listen on VLAN 30
+      docker_container:
+        name: technitium
+        state: started
+        restart: yes
+        network_mode: host  # Use host networking to bind to all interfaces
+      ignore_errors: yes
+
+    - name: Wait for Technitium to restart
+      wait_for:
+        port: 5380
+        delay: 5
+        timeout: 60
+
+    - name: Display configuration summary
+      debug:
+        msg: |
+          ========================================
+          VLAN 30 Configuration Complete
+          ========================================
+          Hostname: {{ inventory_hostname }}
+          VLAN 20 IP: {{ ansible_host }}
+          VLAN 30 IP: {{ vlan30_ip }}
+          Interface: {{ primary_interface.stdout }}.{{ vlan_id }}
+          Gateway: {{ vlan30_gateway }}
+          ========================================
+          
+          Next Steps:
+          1. Test DNS from VLAN 30: dig @{{ vlan30_ip }} google.com
+          2. Configure DHCP scope for VLAN 30 in web UI
+          3. Verify Technitium is listening on both interfaces

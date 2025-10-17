@@ -23,29 +23,35 @@ terraform apply -var-file="dns.tfvars" -parallelism=1
 ```
 
 **Status:** 
-- ✅ technitium-dns1 (VM 105) on pve1 - 192.168.20.13
-- ✅ technitium-dns2 (VM 104) on pve2 - 192.168.20.12
+- ✅ technitium-dns1 (VM 105) on pve1 - 192.168.20.29
+- ✅ technitium-dns2 (VM 106) on pve2 - 192.168.20.28
 
-### Phase 2: Install Technitium DNS with Ansible
+### Phase 2: Install Technitium DNS with Ansible ✅ COMPLETED
 ```bash
 cd d:\cluster\monger-homelab
 
 # Install Technitium DNS on both servers
-ansible-playbook -i inventory/raclette/hosts.ini playbook/technitium_dns.yml
-
-# Access web interfaces:
-# - http://192.168.20.13:5380 (dns1)
-# - http://192.168.20.12:5380 (dns2)
-# Default login: admin/admin (CHANGE THIS!)
+ansible-playbook -i inventory/raclette/inventory.ini playbook/technitium_dns.yml
 ```
 
-### Phase 3: Configure Technitium
-After installation:
-1. Log into web interface on both servers
-2. Change admin password
-3. Configure DNS zones and forwarders
-4. Set up zone replication between servers
-5. Test DNS resolution
+**Deployed:**
+- Technitium DNS version: `latest`
+- Docker containers running on both VMs
+- systemd-resolved disabled (to free port 53)
+- Web interfaces accessible
+
+**Access:**
+- http://192.168.20.29:5380 (dns1)
+- http://192.168.20.28:5380 (dns2)
+- Default login: admin/admin ⚠️ **CHANGE THIS IMMEDIATELY!**
+
+### Phase 3: Configure Technitium (TODO)
+Next steps:
+1. ⚠️ Log into web interface on both servers and change admin password
+2. Configure DNS zones and forwarders
+3. Set up zone replication between servers
+4. Test DNS resolution
+5. Update DHCP to point clients to new DNS servers
 
 ### Phase 3: Cutover
 1. Update DHCP/network configs to point to new DNS servers
