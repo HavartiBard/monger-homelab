@@ -2,9 +2,16 @@ variable "ssh_key" {
   default = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJsd0qieGX7cTG6k0xSlECmD8F8a+jYlfBW68xUMMQMG"
 }
 
+variable "vm_password" {
+  description = "Default password for VMs and LXC containers"
+  type        = string
+  sensitive   = true
+  default     = "cpQhFJ*39"  # Change this or set via TF_VAR_vm_password
+}
+
 variable pm_api_token_secret {
   description = "The secret token for the Proxmox API"
-  default = "bc55e6bf-af66-43c9-b921-456aad58a94c"
+  default = "b4953b11-0d17-4a76-93a0-56dd793f2eb4"  # Update after running: pveum user token add root@pam terraform_admin --privsep 0
 }
 variable "proxmox_host" {
     description = "List of Proxmox hosts"

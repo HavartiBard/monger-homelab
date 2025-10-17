@@ -14,7 +14,7 @@ provider "proxmox" {
   pm_api_url = "https://pve1.klsll.com:8006/api2/json"
 
   # api token id is in the form of: <username>@pam!<tokenId>
-  pm_api_token_id = "root@pam!root_terraform"
+  pm_api_token_id = "root@pam!terraform_admin"
   pm_api_token_secret = var.pm_api_token_secret
 
   # Setting pm_tls_insecure to true because the Proxmox SSL certificate is not fully configured.

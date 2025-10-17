@@ -1,0 +1,70 @@
+---
+# Initial Bootstrap - Run as root to create james user
+# After this, use bootstrap_automation_lxc.yml with james user
+
+- name: Initial Bootstrap - Create Admin User
+  hosts: automation
+  become: yes
+  vars:
+    vm_password: "{{ lookup('env', 'TF_VAR_vm_password') | default('changeme', true) }}"
+  
+  tasks:
+    - name: Create james user (primary admin user)
+      user:
+        name: james
+        comment: "Primary Admin User"
+        shell: /bin/bash
+        create_home: yes
+        groups: sudo
+        append: yes
+        password: "{{ vm_password | password_hash('sha512') }}"
+    
+    - name: Setup passwordless sudo for james
+      copy:
+        content: "james ALL=(ALL) NOPASSWD:ALL\n"
+        dest: "/etc/sudoers.d/james"
+        mode: '0440'
+        validate: 'visudo -cf %s'
+    
+    - name: Create .ssh directory for james
+      file:
+        path: /home/james/.ssh
+        state: directory
+        owner: james
+        group: james
+        mode: '0700'
+    
+    - name: Add SSH key for james user
+      authorized_key:
+        user: james
+        key: "{{ lookup('file', lookup('env','HOME') + '/.ssh/id_ed25519.pub') }}"
+        state: present
+    
+    - name: Disable root SSH login
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^PermitRootLogin'
+        line: 'PermitRootLogin no'
+        state: present
+      notify: restart sshd
+    
+    - name: Display success message
+      debug:
+        msg: |
+          ========================================
+          ✅ Initial Bootstrap Complete
+          ========================================
+          
+          Created user: james
+          SSH access: ssh james@192.168.20.50
+          
+          Next step:
+          Run the full bootstrap as james user:
+          ansible-playbook -i inventory/raclette/inventory.ini playbook/bootstrap_automation_lxc.yml
+          ========================================
+  
+  handlers:
+    - name: restart sshd
+      service:
+        name: sshd
+        state: restarted

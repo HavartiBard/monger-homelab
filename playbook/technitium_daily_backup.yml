@@ -5,15 +5,25 @@
 - name: Backup Technitium DNS Configuration (All Servers)
   hosts: dns_old,technitium_dns
   become: yes
+  gather_facts: no
   vars:
-    backup_timestamp: "{{ ansible_date_time.date }}-{{ ansible_date_time.hour }}{{ ansible_date_time.minute }}"
-    backup_dir: "/tmp/technitium-backup-{{ backup_timestamp }}"
     # Unraid NAS configuration
     unraid_ip: "192.168.20.5"  # unraid.klsll.com
     unraid_backup_path: "/mnt/unraid-backups/technitium"  # Local mount point
     backup_retention_days: 30  # Keep backups for 30 days
     
   tasks:
+    - name: Get timestamp
+      command: date +%Y-%m-%d-%H%M
+      register: timestamp_result
+      changed_when: false
+      delegate_to: localhost
+      run_once: yes
+    
+    - name: Set backup variables
+      set_fact:
+        backup_timestamp: "{{ timestamp_result.stdout }}"
+        backup_dir: "/tmp/technitium-backup-{{ timestamp_result.stdout }}"
     - name: Create backup directory
       file:
         path: "{{ backup_dir }}"

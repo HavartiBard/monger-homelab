@@ -1,5 +1,30 @@
 # Terraform Homelab Infrastructure
 
+## Variables
+
+### Set VM Password
+
+Before deploying VMs or LXC containers, set the password:
+
+```bash
+# Option 1: Environment variable (recommended)
+export TF_VAR_vm_password="your-secure-password"
+
+# Option 2: Create terraform.tfvars
+echo 'vm_password = "your-secure-password"' > terraform.tfvars
+
+# Option 3: Pass on command line
+terraform apply -var="vm_password=your-secure-password"
+```
+
+**Note:** The default password is `changeme` - change this before deploying!
+
+### SSH Key
+
+The SSH key is defined in `vars.tf`:
+- Uses `ssh_key` variable (ed25519 key)
+- Update `vars.tf` if you need to use a different key
+
 ## Deployment Commands
 
 ### DNS Servers Only

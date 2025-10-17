@@ -1,190 +1,196 @@
-# Raclette
-Home Lab
+# Monger Homelab Infrastructure
 
-Establishing docs to create a fresh docker and kubernetes cluster install
+> Infrastructure as Code for homelab DNS, DHCP, and compute resources
 
-This is my attempt to build and manage a kubernetes cluster using ansible and k3s. I am using the following resources to guide me:
+## 🏗️ Overview
 
-# Build a Kubernetes cluster using K3s via Ansible
+This repository contains the complete infrastructure definition for the Monger homelab, including:
 
-Author: <https://github.com/itwars>  
-Current Maintainer: <https://github.com/dereknola>
+- **DNS Servers** - Technitium DNS with automated zone management
+- **DHCP Servers** - Technitium DHCP with static reservations
+- **Compute** - Proxmox VMs managed via Terraform
+- **Network** - Multi-VLAN setup (VLAN 20: Homelab, VLAN 30: IoT)
+- **Automation** - Ansible playbooks for configuration management
 
-Easily bring up a cluster on machines running:
+## 📚 Documentation Index
 
-- [X] Debian
-- [X] Ubuntu
-- [X] Raspberry Pi OS
-- [X] RHEL Family (CentOS, Redhat, Rocky Linux...)
-- [X] SUSE Family (SLES, OpenSUSE Leap, Tumbleweed...)
-- [X] ArchLinux
+### Getting Started
+- **[Setup Guide](SETUP_GUIDE.md)** - Initial setup and prerequisites
+- **[DNS Deployment](terraform/DNS_DEPLOYMENT.md)** - Deploy DNS servers via Terraform
+- **[DNS Management Strategy](DNS_MANAGEMENT_STRATEGY.md)** - How DNS zones are managed
 
-on processor architectures:
+### Infrastructure Components
+- **[Terraform](terraform/)** - VM provisioning and infrastructure
+- **[Ansible Playbooks](playbook/)** - Configuration management
+- **[Configuration Files](config/)** - DHCP scopes and DNS zones
 
-- [X] x64
-- [X] arm64
-- [X] armhf
+### Operations
+- **[Backup & Restore](playbook/README_BACKUP_RESTORE.md)** - Backup procedures
+- **[IP Cutover Guide](terraform/IP_CUTOVER_GUIDE.md)** - Migrating to legacy IPs
 
-## ✅ System requirements
+## 🚀 Quick Start
 
-The control node **must** have Ansible 8.0+ (ansible-core 2.15+)
+### Prerequisites
+- **Ansible** 2.15+ on control node
+- **Terraform** 1.0+ for infrastructure provisioning
+- **Proxmox VE** cluster (pve1, pve2)
+- **SSH access** to all managed nodes
 
-All managed nodes in inventory must have:
-- Passwordless SSH access
-- Root access (or a user with equivalent permissions) 
-
-It is also recommended that all managed nodes disable firewalls and swap. See [K3s Requirements](https://docs.k3s.io/installation/requirements) for more information.
-
-## 🚀 Getting Started
-
-### 🍴 Preparation
-In my homelab this is my Desktop
-
-On Ansible host we need the following installed:
-python3.9, VirtualEnv, Ansible, Kubespray, Helm and brew
-
-```
-sudo apt install python3.9
-sudo apt install python3-pip -y
-sudo apt install python3-venv -y
-sudo pip install ansible
-
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-
-curl https://baltocdn.com/helm/signing.asc | gpg --dearmor | sudo tee /usr/share/keyrings/helm.gpg > /dev/null
-sudo apt-get install apt-transport-https --yes
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/helm.gpg] https://baltocdn.com/helm/stable/debian/ all main" | sudo tee /etc/apt/sources.list.d/helm-stable-debian.list
-sudo apt-get update
-sudo apt-get install helm
-
-brew install argocd
-```
-
-Now we are going to prepare the cluster nodes, this involves setting up passwordless ssh and enabling sudo.
-The rest will be handled by the ubuntu_bootstrap playbook.
-
-I should have deployed my Github SSH key during OS provisioning, but in the event that did not work lets prepare the nodes for provisioning
-``` 
-    ssh-copy-id james@<ip>
-```
-
-Enable passwordless sudo on each node
-```
-    echo "james ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/james
-```
-
-Next we need to create the ansible inventory for the cluster
-```
-    mkdir -p inventory/raclette
-    cp inventory/sample/hosts.ini inventory/raclette/inventory.ini
-```
-
-Now that we can SSH into these boxes, lets bootsrap them:
-```
-    ansible-playbook -i inventory/raclette/inventory.ini playbooks/ubuntu_bootsrap.yml -vv
-```
-
-## Setup Cloudflare domain for Let's Encrypt ACME validation
-
-https://github.com/acmesh-official/acme.sh/wiki/dnsapi#dns_cf
-
-## Usage
-
-First copy the sample inventory to `inventory.yml`.
+### Deploy DNS Infrastructure
 
 ```bash
-cp inventory-sample.yml inventory.yml
+# 1. Deploy VMs via Terraform
+cd terraform
+terraform init
+terraform apply
+
+# 2. Install Technitium DNS
+cd ../playbook
+ansible-playbook -i ../inventory/raclette/inventory.ini technitium_dns.yml
+
+# 3. Configure DHCP scopes
+ansible-playbook -i ../inventory/raclette/inventory.ini configure_dhcp_api.yml
+
+# 4. Configure DNS zones
+ansible-playbook -i ../inventory/raclette/inventory.ini configure_dns_zones.yml
 ```
 
-Second edit the inventory file to match your cluster setup. For example:
-```bash
-k3s_cluster:
-  children:
-    server:
-      hosts:
-        192.16.35.11:
-    agent:
-      hosts:
-        192.16.35.12:
-        192.16.35.13:
-```
-
-If needed, you can also edit `vars` section at the bottom to match your environment.
-
-If multiple hosts are in the server group the playbook will automatically setup k3s in HA mode with embedded etcd.
-An odd number of server nodes is required (3,5,7). Read the [official documentation](https://docs.k3s.io/datastore/ha-embedded) for more information.
-
-Setting up a loadbalancer or VIP beforehand to use as the API endpoint is possible but not covered here.
-
-
-Start provisioning of the cluster using the following command:
+### Test DNS Resolution
 
 ```bash
-ansible-playbook playbook/site.yml -i inventory.yml
+# Forward lookup
+dig @192.168.20.29 pve1.lab.klsll.com
+
+# Reverse lookup
+dig @192.168.20.29 -x 192.168.20.100
 ```
 
-## Upgrading
+## 🏗️ Infrastructure Architecture
 
-A playbook is provided to upgrade K3s on all nodes in the cluster. To use it, update `k3s_version` with the desired version in `inventory.yml` and run:
+### Network Layout
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    Proxmox Cluster                      │
+│  ┌──────────────┐              ┌──────────────┐        │
+│  │    pve1      │              │    pve2      │        │
+│  │ 192.168.20.100│             │ 192.168.20.101│       │
+│  └──────────────┘              └──────────────┘        │
+│                                                          │
+│  ┌──────────────┐              ┌──────────────┐        │
+│  │ technitium-  │              │ technitium-  │        │
+│  │    dns1      │◄────HA──────►│    dns2      │        │
+│  │ 192.168.20.29│              │ 192.168.20.28│        │
+│  │ 192.168.30.29│              │ 192.168.30.28│        │
+│  └──────────────┘              └──────────────┘        │
+└─────────────────────────────────────────────────────────┘
+         │                              │
+         ├──── VLAN 20 (Homelab)       │
+         │     192.168.20.0/24          │
+         │                              │
+         └──── VLAN 30 (IoT)            │
+               192.168.30.0/24          │
+```
+
+### DNS Zones
+- **lab.klsll.com** - Homelab services
+- **iot.klsll.com** - IoT devices
+- **20.168.192.in-addr.arpa** - Reverse zone for VLAN 20
+- **30.168.192.in-addr.arpa** - Reverse zone for VLAN 30
+
+### DHCP Scopes
+- **VLAN 20**: 192.168.20.50 - 192.168.20.250
+- **VLAN 30**: 192.168.30.50 - 192.168.30.250
+
+## 📁 Repository Structure
+
+```
+monger-homelab/
+├── terraform/              # Infrastructure as Code
+│   ├── main.tf            # VM definitions
+│   ├── variables.tf       # Terraform variables
+│   └── DNS_DEPLOYMENT.md  # Deployment guide
+├── playbook/              # Ansible playbooks
+│   ├── configure_dhcp_api.yml    # DHCP configuration
+│   ├── configure_dns_zones.yml   # DNS zone management
+│   ├── technitium_dns.yml        # Install Technitium
+│   └── README_BACKUP_RESTORE.md  # Backup procedures
+├── config/                # Configuration files
+│   ├── dhcp_scopes.yml    # DHCP scope definitions
+│   └── dns_zones.yml      # DNS zone definitions
+├── inventory/             # Ansible inventory
+│   └── raclette/
+│       └── inventory.ini  # Host definitions
+└── scripts/               # Utility scripts
+    └── setup-unraid-mount.sh
+```
+
+## 🔧 Common Operations
+
+### Update DHCP Scopes
 
 ```bash
-ansible-playbook playbook/upgrade.yml -i inventory.yml
+# 1. Edit config file
+vim config/dhcp_scopes.yml
+
+# 2. Deploy changes
+ansible-playbook -i inventory/raclette/inventory.ini playbook/configure_dhcp_api.yml
 ```
 
-## Airgap Install
-
-Airgap installation is supported via the `airgap_dir` variable. This variable should be set to the path of a directory containing the K3s binary and images. The release artifacts can be downloaded from the [K3s Releases](https://github.com/k3s-io/k3s/releases). You must download the appropriate images for you architecture (any of the compression formats will work).
-
-An example folder for an x86_64 cluster:
-```bash
-$ ls ./playbook/my-airgap/
-total 248M
--rwxr-xr-x 1 $USER $USER  58M Nov 14 11:28 k3s
--rw-r--r-- 1 $USER $USER 190M Nov 14 11:30 k3s-airgap-images-amd64.tar.gz
-
-$ cat inventory.yml
-...
-airgap_dir: ./my-airgap # Paths are relative to the playbook directory
-```
-
-Additionally, if deploying on a OS with SELinux, you will also need to download the latest [k3s-selinux RPM](https://github.com/k3s-io/k3s-selinux/releases/latest) and place it in the airgap folder.
-
-
-It is assumed that the control node has access to the internet. The playbook will automatically download the k3s install script on the control node, and then distribute all three artifacts to the managed nodes. 
-
-## Kubeconfig
-
-After successful bringup, the kubeconfig of the cluster is copied to the control node  and merged with `~/.kube/config` under the `k3s-ansible` context.
-Assuming you have [kubectl](https://kubernetes.io/docs/tasks/tools/#kubectl) installed, you can confirm access to your **Kubernetes** cluster with the following:
+### Add DNS Records
 
 ```bash
-kubectl config use-context k3s-ansible
-kubectl get nodes
+# 1. Edit zone file
+vim config/dns_zones.yml
+
+# 2. Deploy changes
+ansible-playbook -i inventory/raclette/inventory.ini playbook/configure_dns_zones.yml
 ```
 
-If you wish for your kubeconfig to be copied elsewhere and not merged, you can set the `kubeconfig` variable in `inventory.yml` to the desired path.
-
-## Local Testing
-
-A Vagrantfile is provided that provision a 5 nodes cluster using Vagrant (LibVirt or Virtualbox as provider). To use it:
+### Backup DNS Configuration
 
 ```bash
-vagrant up
+ansible-playbook -i inventory/raclette/inventory.ini playbook/technitium_daily_backup.yml
 ```
 
-By default, each node is given 2 cores and 2GB of RAM and runs Ubuntu 20.04. You can customize these settings by editing the `Vagrantfile`.
+### Restore from Backup
 
-## Need More Features?
+```bash
+ansible-playbook -i inventory/raclette/inventory.ini playbook/technitium_backup_restore.yml
+```
 
-This project is intended to provide a "vanilla" K3s install. If you need more features, such as:
-- Private Registry
-- Advanced Storage (Longhorn, Ceph, etc)
-- External Database
-- External Load Balancer or VIP
-- Alternative CNIs
+## 🎯 Design Principles
 
-See these other projects:
-- https://github.com/PyratLabs/ansible-role-k3s
-- https://github.com/techno-tim/k3s-ansible
-- https://github.com/jon-stumpf/k3s-ansible
-- https://github.com/alexellis/k3sup
+1. **Infrastructure as Code** - All configuration in version control
+2. **Idempotent Operations** - Safe to re-run playbooks
+3. **Separation of Concerns** - Static infrastructure vs dynamic state
+4. **API-First** - Use Technitium REST API for configuration
+5. **Documentation** - Context-based docs near relevant code
+
+## 📖 Key Concepts
+
+### DNS Management
+- **Static records** managed via `dns_zones.yml` (infrastructure)
+- **Dynamic records** auto-created by DHCP (clients)
+- See [DNS Management Strategy](DNS_MANAGEMENT_STRATEGY.md) for details
+
+### DHCP Configuration
+- **Scopes** defined in `dhcp_scopes.yml`
+- **Static reservations** for infrastructure
+- **Failover** configured between dns1 and dns2
+
+### IP Migration
+- Currently using temporary IPs (.28, .29)
+- Will migrate to legacy IPs (.2, .3) after testing
+- See [IP Cutover Guide](terraform/IP_CUTOVER_GUIDE.md)
+
+## 🔗 Useful Links
+
+- [Technitium DNS Documentation](https://technitium.com/dns/)
+- [Technitium API Docs](https://github.com/TechnitiumSoftware/DnsServer/blob/master/APIDOCS.md)
+- [Proxmox VE Documentation](https://pve.proxmox.com/pve-docs/)
+- [Terraform Proxmox Provider](https://registry.terraform.io/providers/Telmate/proxmox/latest/docs)
+
+## 📝 License
+
+Personal homelab infrastructure - use at your own risk! 🏠
