@@ -1,0 +1,23 @@
+---
+# Only update records that are explicitly managed in config
+# This preserves DHCP-created dynamic records
+- name: Add/Update DNS record {{ record.name }} ({{ record.type }})
+  uri:
+    url: "http://{{ ansible_host }}:{{ technitium_port }}/api/zones/records/add"
+    method: POST
+    body_format: form-urlencoded
+    body:
+      token: "{{ api_token }}"
+      zone: "{{ zone.name }}"
+      domain: "{{ record.name }}.{{ zone.name }}"
+      type: "{{ record.type }}"
+      ttl: "{{ record.ttl | default(3600) }}"
+      overwrite: "true"  # Only overwrites exact match (name + type)
+      comments: "Managed by Ansible"  # Tag to identify IaC-managed records
+      "{{ 'ipAddress' if record.type in ['A', 'AAAA'] else 'cname' if record.type == 'CNAME' else 'ptrName' if record.type == 'PTR' else 'value' }}": "{{ record.value }}"
+    status_code: [200, 400]  # 400 if record already exists with different data
+    return_content: yes
+  loop: "{{ zone.records }}"
+  loop_control:
+    loop_var: record
+    label: "{{ record.name }} ({{ record.type }}) -> {{ record.value }}"

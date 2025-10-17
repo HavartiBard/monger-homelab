@@ -15,7 +15,7 @@ variable "proxmox_host" {
 variable "template_name" {
     type = string
     description = "Name of the cloud init template"
-    default = "ubuntu-2404-cloudinit"
+    default = "ubuntu-2404-cloudinit-template"
 }
 
 variable "dns1_api_key" {
@@ -51,4 +51,10 @@ variable "dns_vms" {
         disk_size   = string
     }))
     default = []
+}
+
+variable "dns_use_legacy_ips" {
+    type        = bool
+    description = "Use legacy DNS IPs (192.168.20.2/3) instead of new IPs (192.168.20.28/29)"
+    default     = false  # Start with temp IPs, switch to true for cutover
 }

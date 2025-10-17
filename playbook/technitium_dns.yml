@@ -2,11 +2,34 @@
 - name: Bootstrap and Install Technitium DNS Server
   hosts: technitium_dns
   become: yes
+  gather_facts: false
   vars:
-    technitium_version: "13.0.2"  # Pin specific version for reproducibility
+    technitium_version: "latest"  # Use latest stable version
     technitium_data_dir: "/opt/technitium"
     technitium_port: 5380
-    
+
+  pre_tasks:
+    - name: Ensure Python tooling needed by Ansible is present
+      raw: |
+        NEED_UPDATE=0
+        for pkg in python3-six; do
+          if ! dpkg -s "$pkg" >/dev/null 2>&1; then
+            NEED_UPDATE=1
+            break
+          fi
+        done
+        if [ "$NEED_UPDATE" -eq 1 ]; then
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update || true
+          apt-get install -y python3-six >/tmp/ansible-python-bootstrap.log 2>&1 || true
+        fi
+        exit 0
+      register: python_bootstrap
+      changed_when: false
+
+    - name: Gather facts
+      setup:
+
   tasks:
     # ========================================
     # Phase 1: System Bootstrap
@@ -101,7 +124,31 @@
       when: ansible_swaptotal_mb > 0
 
     # ========================================
-    # Phase 2: Docker Installation
+    # Phase 2: Disable systemd-resolved (conflicts with DNS on port 53)
+    # ========================================
+    - name: Stop systemd-resolved
+      systemd:
+        name: systemd-resolved
+        state: stopped
+        enabled: no
+
+    - name: Remove resolv.conf symlink
+      file:
+        path: /etc/resolv.conf
+        state: absent
+
+    - name: Create new resolv.conf with upstream DNS
+      copy:
+        content: |
+          nameserver 1.1.1.1
+          nameserver 8.8.8.8
+        dest: /etc/resolv.conf
+        owner: root
+        group: root
+        mode: '0644'
+
+    # ========================================
+    # Phase 3: Docker Installation
     # ========================================
     - name: Install Docker prerequisites
       apt:

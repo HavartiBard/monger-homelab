@@ -55,8 +55,16 @@ resource "proxmox_vm_qemu" "k3s" {
     }
     bios = "ovmf"
 
-    # Setup the disk
+    # Ensure the cloned root disk stays attached on virtio0 and the cloud-init ISO lives on local storage.
     disks {
+        virtio {
+            virtio0 {
+                disk {
+                    storage = "local-zfs"
+                    size    = each.value.disk_size
+                }
+            }
+        }
         ide {
             ide3 {
                 cloudinit {
@@ -64,15 +72,10 @@ resource "proxmox_vm_qemu" "k3s" {
                 }
             }
         }
-        # NOTE:
-        # Do NOT add an extra blank boot disk here. The cloned cloud image
-        # provides the OS disk as scsi0. Adding a new virtio0 disk results
-        # in an unbootable VM. If you need an additional data disk, add it
-        # explicitly under scsi1/scsi2, etc.
     }
 
-    # Setup the ip address using cloud-init.
-    boot = "order=scsi0"
+    # Force Proxmox to boot from the root disk instead of the (detached) cloud-init ISO.
+    boot = "order=virtio0"
 }
 
 # DNS Server VMs - separate from k3s cluster
@@ -109,14 +112,41 @@ resource "proxmox_vm_qemu" "dns" {
     ${var.ssh_key}
     EOF
 
-    # Setup the network interface
+    # Setup the network interfaces for DNS servers
+    # Primary interface - Native/Untagged (Homelab VLAN 20)
     network {
         model = "virtio"
         bridge = "vmbr0"
+        # No tag = native/untagged VLAN
     }
+    # Secondary interface - VLAN 30 (IoT)
+    network {
+        model = "virtio"
+        bridge = "vmbr0"
+        tag = 30
+    }
+    
     # Network configs
     skip_ipv6 = true
-    ipconfig0 = "ip=dhcp"  
+    
+    # VLAN 20 interface (ens18)
+    # Phase 1 (testing): Use temp static IPs (192.168.20.28/29)
+    # Phase 2 (cutover): Use legacy IPs (192.168.20.2/3)
+    ipconfig0 = var.dns_use_legacy_ips ? (
+        each.value.name == "technitium-dns1" ? "ip=192.168.20.3/24,gw=192.168.20.1" : "ip=192.168.20.2/24,gw=192.168.20.1"
+    ) : (
+        each.value.name == "technitium-dns1" ? "ip=192.168.20.29/24,gw=192.168.20.1" : "ip=192.168.20.28/24,gw=192.168.20.1"
+    )
+    
+    # VLAN 30 interface (ens19) - Static IP (no gateway - use VLAN 20 as default route)
+    # Phase 1 (testing): Use temp IPs (192.168.30.28/29)
+    # Phase 2 (cutover): Use legacy IPs (192.168.30.2/3)
+    ipconfig1 = var.dns_use_legacy_ips ? (
+        each.value.name == "technitium-dns1" ? "ip=192.168.30.3/24" : "ip=192.168.30.2/24"
+    ) : (
+        each.value.name == "technitium-dns1" ? "ip=192.168.30.29/24" : "ip=192.168.30.28/24"
+    )
+    
     searchdomain = "klsll.com"
     nameserver = "192.168.20.2"
 
@@ -127,8 +157,16 @@ resource "proxmox_vm_qemu" "dns" {
     }
     bios = "ovmf"
 
-    # Setup the disk
+    # Ensure the cloned root disk stays attached on virtio0 and the cloud-init ISO lives on local storage.
     disks {
+        virtio {
+            virtio0 {
+                disk {
+                    storage = "local-zfs"
+                    size    = each.value.disk_size
+                }
+            }
+        }
         ide {
             ide3 {
                 cloudinit {
@@ -136,12 +174,8 @@ resource "proxmox_vm_qemu" "dns" {
                 }
             }
         }
-        # NOTE:
-        # The cloned cloud image provides the OS disk as scsi0.
-        # Do not create a separate virtio0 disk or the VM will try to boot
-        # from an empty disk. Add extra data disks as scsi1+ if needed.
     }
 
-    # Setup the ip address using cloud-init.
-    boot = "order=scsi0"
+    # Force Proxmox to boot from the root disk instead of the (detached) cloud-init ISO.
+    boot = "order=virtio0"
 }
