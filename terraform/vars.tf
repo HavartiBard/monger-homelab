@@ -1,18 +1,25 @@
 variable "ssh_key" {
-  default = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJsd0qieGX7cTG6k0xSlECmD8F8a+jYlfBW68xUMMQMG"
+  description = "SSH public key for infrastructure"
+  type        = string
+  sensitive   = false
+  # Set via TF_VAR_ssh_key environment variable or use 1Password
+  default     = ""
 }
 
 variable "vm_password" {
   description = "Default password for VMs and LXC containers"
   type        = string
   sensitive   = true
-  default     = "cpQhFJ*39"  # Change this or set via TF_VAR_vm_password
+  # Set via TF_VAR_vm_password environment variable or use 1Password
+  default     = ""
 }
 
 variable pm_api_token_secret {
   description = "The secret token for the Proxmox API"
-  # Loaded from 1Password via 1password.tf
-  default = ""
+  type        = string
+  sensitive   = true
+  # Set via TF_VAR_pm_api_token_secret environment variable or use 1Password
+  default     = ""
 }
 variable "proxmox_host" {
     description = "List of Proxmox hosts"

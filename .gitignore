@@ -12,3 +12,34 @@ inventory/**/vault.yml
 .vault_pass
 *.vault
 **/secrets.yml
+
+# Terraform
+*.tfstate
+*.tfstate.*
+*.tfvars.json
+.terraform/
+.terraform.lock.hcl
+terraform.tfstate.d/
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Kubernetes
+kubeconfig
+*.kubeconfig
+secrets/
+k8s-secrets/
+
+# 1Password
+.op/
+*.op.json
+
+# Environment files
+.env
+.env.local
+*.env
+
+# Service account tokens
+*service-account*.json
+*serviceaccount*.json

@@ -34,7 +34,7 @@ resource "proxmox_vm_qemu" "k3s" {
     ciuser = "james"
 
     sshkeys = <<EOF
-    ${var.ssh_key}
+    ${local.ssh_public_key}
     EOF
 
     # Setup the network interface
@@ -109,7 +109,7 @@ resource "proxmox_vm_qemu" "dns" {
     ciuser = "james"
 
     sshkeys = <<EOF
-    ${var.ssh_key}
+    ${local.ssh_public_key}
     EOF
 
     # Setup the network interfaces for DNS servers
