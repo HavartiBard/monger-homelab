@@ -11,7 +11,8 @@ variable "vm_password" {
 
 variable pm_api_token_secret {
   description = "The secret token for the Proxmox API"
-  default = "b4953b11-0d17-4a76-93a0-56dd793f2eb4"  # Update after running: pveum user token add root@pam terraform_admin --privsep 0
+  # Loaded from 1Password via 1password.tf
+  default = ""
 }
 variable "proxmox_host" {
     description = "List of Proxmox hosts"
@@ -26,10 +27,12 @@ variable "template_name" {
 }
 
 variable "dns1_api_key" {
-    default = "1e44965fc0ed299793edbe805ec6b6441a2830bb620e98f8ffedcc0d0aa6fb31"
+    # Loaded from 1Password via 1password.tf
+    default = ""
 }
 variable "dns2_api_key" {
-    default = "3e4a7e8ebe2eade594d21a5bd01fe9afb0fb1c0a8a467645a764f209c5208a68"
+    # Loaded from 1Password via 1password.tf
+    default = ""
 }
 
 variable "vms" {

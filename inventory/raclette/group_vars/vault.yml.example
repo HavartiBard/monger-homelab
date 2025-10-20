@@ -1,0 +1,6 @@
+---
+# Encrypted secrets for automation
+# Copy this to vault.yml and encrypt with: ansible-vault encrypt vault.yml
+
+vault_technitium_dns1_token: "YOUR_DNS1_TOKEN_HERE"
+vault_technitium_dns2_token: "YOUR_DNS2_TOKEN_HERE"

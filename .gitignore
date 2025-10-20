@@ -6,3 +6,9 @@ venv
 inventory.yml
 playbook/debug.yml
 docs/.$MongerHomeLab.drawio.bkp
+
+# Secrets - NEVER commit these!
+inventory/**/vault.yml
+.vault_pass
+*.vault
+**/secrets.yml
