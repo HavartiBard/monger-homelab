@@ -6,9 +6,6 @@
   hosts: technitium_dns
   gather_facts: no
   vars:
-    technitium_port: 5380
-    technitium_admin_user: "admin"
-    technitium_admin_password: "{{ lookup('env', 'TECHNITIUM_PASSWORD') | default('admin', true) }}"
     unraid_backup_path: "/mnt/unraid-backups/technitium"
     backup_retention_days: 30
     
@@ -41,11 +38,8 @@
     
     - name: Create backup using Technitium API
       uri:
-        url: "http://{{ ansible_host }}:{{ technitium_port }}/api/settings/backup"
+        url: "http://{{ ansible_host }}:{{ technitium.port }}/api/settings/backup?token={{ technitium.api_token }}"
         method: GET
-        user: "{{ technitium_admin_user }}"
-        password: "{{ technitium_admin_password }}"
-        force_basic_auth: yes
         dest: "{{ backup_file }}"
         status_code: 200
         timeout: 300

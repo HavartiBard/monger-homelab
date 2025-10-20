@@ -1,17 +1,25 @@
 variable "ssh_key" {
-  default = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJsd0qieGX7cTG6k0xSlECmD8F8a+jYlfBW68xUMMQMG"
+  description = "SSH public key for infrastructure"
+  type        = string
+  sensitive   = false
+  # Set via TF_VAR_ssh_key environment variable or use 1Password
+  default     = ""
 }
 
 variable "vm_password" {
   description = "Default password for VMs and LXC containers"
   type        = string
   sensitive   = true
-  default     = "cpQhFJ*39"  # Change this or set via TF_VAR_vm_password
+  # Set via TF_VAR_vm_password environment variable or use 1Password
+  default     = ""
 }
 
 variable pm_api_token_secret {
   description = "The secret token for the Proxmox API"
-  default = "b4953b11-0d17-4a76-93a0-56dd793f2eb4"  # Update after running: pveum user token add root@pam terraform_admin --privsep 0
+  type        = string
+  sensitive   = true
+  # Set via TF_VAR_pm_api_token_secret environment variable or use 1Password
+  default     = ""
 }
 variable "proxmox_host" {
     description = "List of Proxmox hosts"
@@ -26,10 +34,12 @@ variable "template_name" {
 }
 
 variable "dns1_api_key" {
-    default = "1e44965fc0ed299793edbe805ec6b6441a2830bb620e98f8ffedcc0d0aa6fb31"
+    # Loaded from 1Password via 1password.tf
+    default = ""
 }
 variable "dns2_api_key" {
-    default = "3e4a7e8ebe2eade594d21a5bd01fe9afb0fb1c0a8a467645a764f209c5208a68"
+    # Loaded from 1Password via 1password.tf
+    default = ""
 }
 
 variable "vms" {
