@@ -119,7 +119,7 @@
         name: "Daily DNS Backup"
         minute: "0"
         hour: "2"
-        job: "cd {{ repo_dir }} && bash scripts/backup_dns_servers.sh >> /var/log/dns-backup.log 2>&1"
+        job: "cd {{ repo_dir }} && HOME=/home/{{ automation_user }} SSH_AUTH_SOCK= /usr/bin/ansible-playbook -i inventory/raclette/inventory.ini playbook/technitium_daily_backup.yml --limit technitium_dns >> /var/log/dns-backup.log 2>&1"
         user: "{{ automation_user }}"
         state: present
     
