@@ -24,6 +24,21 @@
       set_fact:
         backup_timestamp: "{{ timestamp_result.stdout }}"
         backup_dir: "/tmp/technitium-backup-{{ timestamp_result.stdout }}"
+    
+    - name: Check disk space in /tmp
+      shell: df -h /tmp | tail -1
+      register: disk_space
+      changed_when: false
+    
+    - name: Display disk space
+      debug:
+        msg: "Disk space on {{ inventory_hostname }}: {{ disk_space.stdout }}"
+    
+    - name: Cleanup old backup files in /tmp
+      shell: find /tmp -name "technitium-backup-*" -type f -o -name "technitium-backup-*" -type d | xargs rm -rf
+      ignore_errors: yes
+      changed_when: false
+    
     - name: Create backup directory
       file:
         path: "{{ backup_dir }}"
