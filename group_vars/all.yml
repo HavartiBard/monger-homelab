@@ -25,6 +25,12 @@ automation:
   user: "automation"
   backup_retention_days: 30
   git_repo: "https://github.com/HavartiBard/monger-homelab.git"
+
+# Technitium DNS settings
+technitium:
+  port: 5380
+  # API tokens are per-host until clustering support is added
+  # See inventory/raclette/host_vars/technitium-dns*.yml for per-host tokens
   
 # Network settings
 network:

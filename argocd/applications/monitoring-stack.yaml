@@ -1,0 +1,242 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: monitoring-stack
+  namespace: argocd
+  labels:
+    environment: production
+    team: infrastructure
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: infrastructure
+  
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: kube-prometheus-stack
+    targetRevision: 55.0.0
+    helm:
+      releaseName: monitoring
+      values: |
+        # Prometheus configuration
+        prometheus:
+          prometheusSpec:
+            retention: 30d
+            storageSpec:
+              volumeClaimTemplate:
+                spec:
+                  accessModes: ["ReadWriteOnce"]
+                  resources:
+                    requests:
+                      storage: 50Gi
+            
+            # Scrape configs for homelab
+            additionalScrapeConfigs:
+              - job_name: 'proxmox'
+                static_configs:
+                  - targets: ['192.168.20.100:9221', '192.168.20.101:9221']
+                    labels:
+                      environment: 'homelab'
+              
+              - job_name: 'technitium-dns'
+                static_configs:
+                  - targets: ['192.168.20.29:5380', '192.168.20.28:5380']
+                    labels:
+                      service: 'dns'
+              
+              - job_name: 'node-exporter'
+                static_configs:
+                  - targets: ['192.168.20.50:9100']
+                    labels:
+                      instance: 'automation-lxc'
+        
+        # Grafana configuration
+        grafana:
+          adminPassword: changeme  # Use External Secrets Operator
+          persistence:
+            enabled: true
+            size: 10Gi
+          
+          # Pre-configure data sources
+          datasources:
+            datasources.yaml:
+              apiVersion: 1
+              datasources:
+                - name: Prometheus
+                  type: prometheus
+                  url: http://monitoring-prometheus:9090
+                  isDefault: true
+                
+                - name: Loki
+                  type: loki
+                  url: http://loki:3100
+          
+          # Import community dashboards
+          dashboardProviders:
+            dashboardproviders.yaml:
+              apiVersion: 1
+              providers:
+                - name: 'default'
+                  orgId: 1
+                  folder: ''
+                  type: file
+                  disableDeletion: false
+                  editable: true
+                  options:
+                    path: /var/lib/grafana/dashboards/default
+          
+          dashboards:
+            default:
+              proxmox:
+                gnetId: 10347  # Proxmox dashboard
+                revision: 1
+                datasource: Prometheus
+              
+              node-exporter:
+                gnetId: 1860  # Node Exporter Full
+                revision: 31
+                datasource: Prometheus
+        
+        # AlertManager configuration
+        alertmanager:
+          config:
+            global:
+              resolve_timeout: 5m
+            
+            route:
+              group_by: ['alertname', 'cluster', 'service']
+              group_wait: 10s
+              group_interval: 10s
+              repeat_interval: 12h
+              receiver: 'slack'
+            
+            receivers:
+              - name: 'slack'
+                slack_configs:
+                  - api_url: 'https://hooks.slack.com/services/YOUR/WEBHOOK/URL'
+                    channel: '#homelab-alerts'
+                    title: '{{ .CommonLabels.alertname }}'
+                    text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+  
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+  
+  # Health assessment
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas
+    - group: apps
+      kind: StatefulSet
+      jsonPointers:
+        - /spec/replicas
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: loki-stack
+  namespace: argocd
+  labels:
+    environment: production
+    team: infrastructure
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  project: infrastructure
+  
+  source:
+    repoURL: https://grafana.github.io/helm-charts
+    chart: loki-stack
+    targetRevision: 2.10.0
+    helm:
+      releaseName: loki
+      values: |
+        loki:
+          enabled: true
+          persistence:
+            enabled: true
+            size: 50Gi
+          
+          config:
+            auth_enabled: false
+            
+            server:
+              http_listen_port: 3100
+            
+            ingester:
+              lifecycler:
+                ring:
+                  kvstore:
+                    store: inmemory
+                  replication_factor: 1
+              chunk_idle_period: 5m
+              chunk_retain_period: 30s
+            
+            schema_config:
+              configs:
+                - from: 2020-10-24
+                  store: boltdb-shipper
+                  object_store: filesystem
+                  schema: v11
+                  index:
+                    prefix: index_
+                    period: 24h
+            
+            storage_config:
+              boltdb_shipper:
+                active_index_directory: /data/loki/boltdb-shipper-active
+                cache_location: /data/loki/boltdb-shipper-cache
+                cache_ttl: 24h
+                shared_store: filesystem
+              filesystem:
+                directory: /data/loki/chunks
+            
+            limits_config:
+              retention_period: 744h  # 31 days
+        
+        promtail:
+          enabled: true
+          config:
+            clients:
+              - url: http://loki:3100/loki/api/v1/push
+            
+            scrape_configs:
+              - job_name: kubernetes-pods
+                kubernetes_sd_configs:
+                  - role: pod
+                relabel_configs:
+                  - source_labels: [__meta_kubernetes_pod_label_app]
+                    target_label: app
+                  - source_labels: [__meta_kubernetes_namespace]
+                    target_label: namespace
+                  - source_labels: [__meta_kubernetes_pod_name]
+                    target_label: pod
+  
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

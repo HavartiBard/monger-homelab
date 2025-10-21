@@ -7,15 +7,11 @@
   
   vars:
     technitium_port: 5380
-    # API tokens for each server
-    technitium_tokens:
-      technitium-dns1: "f6253f0f9c4bd2c0952eb5d8b807b4a44550d5c785789d906e7ef1b94a666ed8"
-      technitium-dns2: "819048ea9356f23157ab915dc4e8f9e2927ccaa206a207f61982c41da8842615"
-    
+
   tasks:
     - name: Set API token for this server
       set_fact:
-        api_token: "{{ technitium_tokens[inventory_hostname] }}"
+        api_token: "{{ technitium.api_token }}"
     
     - name: Verify DHCP config loaded
       debug:
@@ -120,5 +116,5 @@
           Failover Config:
           - Primary: 192.168.20.29
           - Secondary: 192.168.20.28
-          - Shared Secret: {{ dhcp_failover.shared_secret }}
+          - Shared Secret: {{ vault_dhcp_failover_secret }}
           ========================================
