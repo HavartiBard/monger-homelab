@@ -1,0 +1,197 @@
+---
+# DEPRECATED: This is the old file-based backup method
+# Use technitium_api_backup.yml instead (renamed to technitium_daily_backup.yml)
+# 
+# This file is kept for reference only
+# The old method copied files directly from /etc/dns or Docker containers
+# The new method uses Technitium's native backup API which creates proper .zip backups
+
+# Daily automated backup of Technitium DNS servers to Unraid NAS
+# This playbook can be run via cron for automated backups
+
+- name: Backup Technitium DNS Configuration (All Servers)
+  hosts: dns_old,technitium_dns
+  become: yes
+  gather_facts: no
+  vars:
+    # Unraid NAS configuration
+    unraid_ip: "192.168.20.5"  # unraid.klsll.com
+    unraid_backup_path: "/mnt/unraid-backups/technitium"  # Local mount point
+    backup_retention_days: 30  # Keep backups for 30 days
+    
+  tasks:
+    - name: Get timestamp
+      command: date +%Y-%m-%d-%H%M
+      register: timestamp_result
+      changed_when: false
+      delegate_to: localhost
+      run_once: yes
+    
+    - name: Set backup variables
+      set_fact:
+        backup_timestamp: "{{ timestamp_result.stdout }}"
+        backup_dir: "/tmp/technitium-backup-{{ timestamp_result.stdout }}"
+    
+    - name: Check disk space in /tmp
+      shell: df -h /tmp | tail -1
+      register: disk_space
+      changed_when: false
+    
+    - name: Display disk space
+      debug:
+        msg: "Disk space on {{ inventory_hostname }}: {{ disk_space.stdout }}"
+    
+    - name: Cleanup old backup files in /tmp
+      shell: find /tmp -name "technitium-backup-*" -type f -o -name "technitium-backup-*" -type d | xargs rm -rf
+      ignore_errors: yes
+      changed_when: false
+    
+    - name: Create backup directory
+      file:
+        path: "{{ backup_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Check if Technitium is running in Docker
+      shell: docker ps | grep -i technitium || docker ps -a | grep -i technitium
+      register: docker_check
+      ignore_errors: yes
+      changed_when: false
+
+    - name: Get Technitium container name
+      shell: docker ps -a --filter "ancestor=technitium/dns-server" --format "{{ '{{' }}.Names{{ '}}' }}" | head -1
+      register: container_name
+      when: docker_check.rc == 0
+      changed_when: false
+
+    - name: Backup Technitium data from Docker container
+      shell: |
+        docker cp {{ container_name.stdout }}:/etc/dns {{ backup_dir }}/dns-data
+      when: 
+        - docker_check.rc == 0
+        - container_name.stdout != ""
+      ignore_errors: yes
+
+    - name: Check for native Technitium installation
+      stat:
+        path: /etc/dns
+      register: native_dns_dir
+
+    - name: Backup native Technitium data directory
+      shell: |
+        cp -r /etc/dns {{ backup_dir }}/dns-data
+      when: 
+        - native_dns_dir.stat.exists
+        - docker_check.rc != 0
+
+    - name: Check for alternative data location (/opt/technitium)
+      stat:
+        path: /opt/technitium
+      register: opt_technitium_dir
+      when: docker_check.rc != 0 and not native_dns_dir.stat.exists
+
+    - name: Backup from /opt/technitium if present
+      shell: |
+        cp -r /opt/technitium {{ backup_dir }}/dns-data
+      when: 
+        - opt_technitium_dir is defined
+        - opt_technitium_dir is not skipped
+        - opt_technitium_dir.stat.exists
+
+    - name: Get current date/time
+      command: date --iso-8601=seconds
+      register: current_datetime
+      changed_when: false
+    
+    - name: Create backup metadata
+      copy:
+        content: |
+          Hostname: {{ inventory_hostname }}
+          IP Address: {{ ansible_host }}
+          Backup Date: {{ current_datetime.stdout }}
+          Backup Timestamp: {{ backup_timestamp }}
+          Ansible User: {{ ansible_user | default('automation') }}
+          Docker Container: {{ container_name.stdout | default('N/A') }}
+        dest: "{{ backup_dir }}/backup-info.txt"
+
+    - name: Create compressed backup archive
+      shell: |
+        tar czf {{ backup_dir }}.tar.gz -C $(dirname {{ backup_dir }}) $(basename {{ backup_dir }})
+        rm -rf {{ backup_dir }}
+      args:
+        creates: "{{ backup_dir }}.tar.gz"
+
+    - name: Pull backup to Unraid NAS (from automation container)
+      shell: |
+        scp automation@{{ ansible_host }}:{{ backup_dir }}.tar.gz {{ unraid_backup_path }}/{{ inventory_hostname }}-{{ backup_timestamp }}.tar.gz
+      delegate_to: localhost
+      become: no
+
+    - name: Cleanup remote backup
+      file:
+        path: "{{ backup_dir }}.tar.gz"
+        state: absent
+
+    - name: Display backup location
+      debug:
+        msg: "Backup saved to {{ unraid_backup_path }}/{{ inventory_hostname }}-{{ backup_timestamp }}.tar.gz"
+
+
+- name: Cleanup Old Backups on Unraid
+  hosts: localhost
+  gather_facts: no
+  become: no
+  vars:
+    unraid_backup_path: "/mnt/unraid-backups/technitium"
+    backup_retention_days: 30
+    
+  tasks:
+    - name: Find backups older than retention period
+      find:
+        paths: "{{ unraid_backup_path }}"
+        patterns: "*.tar.gz"
+        age: "{{ backup_retention_days }}d"
+      register: old_backups
+
+    - name: Remove old backups
+      file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ old_backups.files }}"
+      when: old_backups.files | length > 0
+
+    - name: Display cleanup summary
+      debug:
+        msg: "Removed {{ old_backups.files | length }} old backup(s)"
+
+
+- name: Backup Summary Report
+  hosts: localhost
+  gather_facts: no
+  become: no
+  vars:
+    unraid_backup_path: "/mnt/unraid-backups/technitium"
+    
+  tasks:
+    - name: List all current backups
+      find:
+        paths: "{{ unraid_backup_path }}"
+        patterns: "*.tar.gz"
+      register: all_backups
+
+    - name: Calculate total backup size
+      shell: du -sh {{ unraid_backup_path }} | cut -f1
+      register: backup_size
+      changed_when: false
+
+    - name: Display backup summary
+      debug:
+        msg: |
+          ========================================
+          Technitium DNS Backup Summary
+          ========================================
+          Total Backups: {{ all_backups.files | length }}
+          Total Size: {{ backup_size.stdout }}
+          Location: {{ unraid_backup_path }}
+          Retention: {{ backup_retention_days }} days
+          ========================================

@@ -1,0 +1,23 @@
+---
+# Technitium DNS Server Configuration
+# These variables apply to all servers in the technitium_dns group
+
+# Service configuration
+technitium_port: 5380
+technitium_data_dir: "/opt/technitium"
+
+# API tokens (loaded from vault)
+# The vault should contain: vault_technitium_tokens
+technitium_tokens: "{{ vault_technitium_tokens }}"
+
+# Backup configuration
+backup_retention_days: 30
+unraid_backup_path: "/mnt/unraid-backups/technitium"
+unraid_ip: "192.168.20.5"
+
+# Network configuration
+dns_forwarders:
+  - address: "1.1.1.1"
+    protocol: "Udp"
+  - address: "1.0.0.1"
+    protocol: "Udp"

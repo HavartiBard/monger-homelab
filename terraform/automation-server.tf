@@ -38,8 +38,8 @@ resource "proxmox_vm_qemu" "automation_server" {
   
   # Cloud-init config
   ciuser     = "ansible"
-  cipassword = var.vm_password
-  sshkeys    = var.ssh_key
+  cipassword = local.vm_password
+  sshkeys    = local.ssh_public_key
   
   # Start on boot
   onboot = true
