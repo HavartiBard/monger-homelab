@@ -3,7 +3,7 @@
   hosts: technitium_dns
   gather_facts: yes
   vars_files:
-    - /mnt/d/cluster/monger-homelab/config/dns_zones.yml
+    - "{{ playbook_dir }}/../config/dns_zones.yml"
   
   vars:
     technitium_port: 5380
@@ -99,7 +99,7 @@
   hosts: localhost
   gather_facts: no
   vars_files:
-    - /mnt/d/cluster/monger-homelab/config/dns_zones.yml
+    - "{{ playbook_dir }}/../config/dns_zones.yml"
   
   tasks:
     - name: Display completion message
