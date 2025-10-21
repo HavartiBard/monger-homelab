@@ -5,19 +5,13 @@
   vars_files:
     - /mnt/d/cluster/monger-homelab/config/dns_zones.yml
   
-  # Variables loaded from:
-  # - group_vars/technitium_dns.yml (technitium_port)
-  # - host_vars/technitium-dns*.yml (technitium_api_token)
-  # - vault.yml (vault_technitium_tokens)
-    
+  vars:
+    technitium_port: 5380
+
   tasks:
-    - name: Verify API token is loaded
-      assert:
-        that:
-          - technitium_api_token is defined
-          - technitium_api_token | length > 0
-        fail_msg: "API token not found for {{ inventory_hostname }}. Check host_vars and vault."
-        success_msg: "API token loaded for {{ inventory_hostname }}"
+    - name: Set API token for this server
+      set_fact:
+        api_token: "{{ technitium.api_token }}"
     
     - name: Display configuration info
       debug:
@@ -29,7 +23,7 @@
         method: GET
         body_format: form-urlencoded
         body:
-          token: "{{ technitium_api_token }}"
+          token: "{{ api_token }}"
         status_code: [200]
         return_content: yes
       register: existing_zones
@@ -40,7 +34,7 @@
         method: POST
         body_format: form-urlencoded
         body:
-          token: "{{ technitium_api_token }}"
+          token: "{{ api_token }}"
           zone: "{{ item.name }}"
           type: "{{ item.type }}"
         status_code: [200, 400]  # 400 if zone already exists
@@ -75,7 +69,7 @@
         method: POST
         body_format: form-urlencoded
         body:
-          token: "{{ technitium_api_token }}"
+          token: "{{ api_token }}"
           forwarders: "{{ dns_forwarders | map(attribute='address') | join(',') }}"
           forwarderProtocol: "{{ dns_forwarders[0].protocol }}"
         status_code: [200]

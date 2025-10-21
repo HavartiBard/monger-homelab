@@ -1,4 +1,8 @@
 ---
 # Host-specific variables for technitium-dns2
-# API token is loaded from vault: vault_technitium_tokens['technitium-dns2']
-technitium_api_token: "{{ vault_technitium_tokens['technitium-dns2'] }}"
+
+technitium:
+  # API token synced from 1Password to Ansible Vault
+  # Source: op://homelab/technitium-dns2/api_token
+  # Stored in: inventory/raclette/group_vars/vault.yml
+  api_token: "{{ vault_technitium_dns2_token }}"

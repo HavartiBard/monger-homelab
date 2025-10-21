@@ -5,7 +5,7 @@ resource "proxmox_lxc" "automation" {
   target_node  = "pve1"
   hostname     = "automation"
   ostemplate   = "local:vztmpl/ubuntu-22.04-standard_22.04-1_amd64.tar.zst"
-  password     = var.vm_password
+  password     = local.vm_password
   unprivileged = true
   
   # Create non-root user
@@ -36,7 +36,7 @@ resource "proxmox_lxc" "automation" {
   searchdomain = "lab.klsll.com"
   
   # SSH key
-  ssh_public_keys = var.ssh_key
+  ssh_public_keys = local.ssh_public_key
   
   # Start on boot
   onboot = true

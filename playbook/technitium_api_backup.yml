@@ -6,10 +6,9 @@
 - name: Backup Technitium DNS Using Native API
   hosts: technitium_dns
   gather_facts: no
-  # Variables are loaded from:
-  # - group_vars/technitium_dns.yml (technitium_port, unraid_backup_path, backup_retention_days)
-  # - host_vars/technitium-dns*.yml (technitium_api_token)
-  # - vault.yml (vault_technitium_tokens)
+  vars:
+    unraid_backup_path: "/mnt/unraid-backups/technitium"
+    backup_retention_days: 30
     
   tasks:
     - name: Get timestamp
@@ -44,7 +43,7 @@
         method: POST
         body_format: form-urlencoded
         body:
-          token: "{{ technitium_api_token }}"
+          token: "{{ technitium.api_token }}"
         dest: "{{ backup_file }}"
         status_code: 200
         timeout: 300
