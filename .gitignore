@@ -6,3 +6,5 @@ venv
 inventory.yml
 playbook/debug.yml
 docs/.$MongerHomeLab.drawio.bkp
+
+.fake

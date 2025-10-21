@@ -1,16 +1,15 @@
 ---
 # Daily automated backup using Technitium's native backup API
 # This creates proper .zip backups that can be restored via the UI
+# API tokens are loaded from vault via host_vars
 
 - name: Backup Technitium DNS Using Native API
   hosts: technitium_dns
   gather_facts: no
-  vars:
-    technitium_port: 5380
-    technitium_admin_user: "admin"
-    technitium_admin_password: "{{ lookup('env', 'TECHNITIUM_PASSWORD') | default('admin', true) }}"
-    unraid_backup_path: "/mnt/unraid-backups/technitium"
-    backup_retention_days: 30
+  # Variables are loaded from:
+  # - group_vars/technitium_dns.yml (technitium_port, unraid_backup_path, backup_retention_days)
+  # - host_vars/technitium-dns*.yml (technitium_api_token)
+  # - vault.yml (vault_technitium_tokens)
     
   tasks:
     - name: Get timestamp
@@ -39,22 +38,23 @@
       ignore_errors: yes
       changed_when: false
     
-    - name: Create backup using Technitium API
+    - name: Create backup using Technitium API (with token)
       uri:
         url: "http://{{ ansible_host }}:{{ technitium_port }}/api/settings/backup"
-        method: GET
-        user: "{{ technitium_admin_user }}"
-        password: "{{ technitium_admin_password }}"
-        force_basic_auth: yes
+        method: POST
+        body_format: form-urlencoded
+        body:
+          token: "{{ technitium_api_token }}"
         dest: "{{ backup_file }}"
         status_code: 200
         timeout: 300
       register: backup_result
     
-    - name: Pull backup to Unraid NAS
-      shell: |
-        scp automation@{{ ansible_host }}:{{ backup_file }} {{ unraid_backup_path }}/{{ inventory_hostname }}-{{ backup_timestamp }}.zip
-      delegate_to: localhost
+    - name: Fetch backup to local Unraid mount
+      fetch:
+        src: "{{ backup_file }}"
+        dest: "{{ unraid_backup_path }}/{{ inventory_hostname }}-{{ backup_timestamp }}.zip"
+        flat: yes
       become: no
     
     - name: Cleanup remote backup file

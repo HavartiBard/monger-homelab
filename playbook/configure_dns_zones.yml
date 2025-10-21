@@ -5,17 +5,19 @@
   vars_files:
     - /mnt/d/cluster/monger-homelab/config/dns_zones.yml
   
-  vars:
-    technitium_port: 5380
-    # API tokens for each server
-    technitium_tokens:
-      technitium-dns1: "f6253f0f9c4bd2c0952eb5d8b807b4a44550d5c785789d906e7ef1b94a666ed8"
-      technitium-dns2: "819048ea9356f23157ab915dc4e8f9e2927ccaa206a207f61982c41da8842615"
+  # Variables loaded from:
+  # - group_vars/technitium_dns.yml (technitium_port)
+  # - host_vars/technitium-dns*.yml (technitium_api_token)
+  # - vault.yml (vault_technitium_tokens)
     
   tasks:
-    - name: Set API token for this server
-      set_fact:
-        api_token: "{{ technitium_tokens[inventory_hostname] }}"
+    - name: Verify API token is loaded
+      assert:
+        that:
+          - technitium_api_token is defined
+          - technitium_api_token | length > 0
+        fail_msg: "API token not found for {{ inventory_hostname }}. Check host_vars and vault."
+        success_msg: "API token loaded for {{ inventory_hostname }}"
     
     - name: Display configuration info
       debug:
@@ -27,7 +29,7 @@
         method: GET
         body_format: form-urlencoded
         body:
-          token: "{{ api_token }}"
+          token: "{{ technitium_api_token }}"
         status_code: [200]
         return_content: yes
       register: existing_zones
@@ -38,7 +40,7 @@
         method: POST
         body_format: form-urlencoded
         body:
-          token: "{{ api_token }}"
+          token: "{{ technitium_api_token }}"
           zone: "{{ item.name }}"
           type: "{{ item.type }}"
         status_code: [200, 400]  # 400 if zone already exists
@@ -73,7 +75,7 @@
         method: POST
         body_format: form-urlencoded
         body:
-          token: "{{ api_token }}"
+          token: "{{ technitium_api_token }}"
           forwarders: "{{ dns_forwarders | map(attribute='address') | join(',') }}"
           forwarderProtocol: "{{ dns_forwarders[0].protocol }}"
         status_code: [200]

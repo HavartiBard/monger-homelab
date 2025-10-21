@@ -1,0 +1,4 @@
+---
+# Host-specific variables for technitium-dns1
+# API token is loaded from vault: vault_technitium_tokens['technitium-dns1']
+technitium_api_token: "{{ vault_technitium_tokens['technitium-dns1'] }}"
