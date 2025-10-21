@@ -1,0 +1,90 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: infrastructure
+  namespace: argocd
+  labels:
+    team: infrastructure
+spec:
+  description: Infrastructure and platform services for the homelab
+  
+  # Allow deployment to these clusters
+  destinations:
+    - namespace: '*'
+      server: https://kubernetes.default.svc
+    - namespace: kube-system
+      server: https://kubernetes.default.svc
+    - namespace: monitoring
+      server: https://kubernetes.default.svc
+    - namespace: dns-system
+      server: https://kubernetes.default.svc
+    - namespace: automation
+      server: https://kubernetes.default.svc
+  
+  # Allow these source repos
+  sourceRepos:
+    - 'https://github.com/HavartiBard/monger-homelab.git'
+    - 'https://prometheus-community.github.io/helm-charts'
+    - 'https://grafana.github.io/helm-charts'
+    - 'https://charts.external-secrets.io'
+    - 'https://kubernetes.github.io/ingress-nginx'
+  
+  # Cluster resource allow list
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  
+  # Namespace resource allow list (deny by default)
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  
+  # Roles for access control
+  roles:
+    # Admin role - full access
+    - name: admin
+      description: Full access to infrastructure project
+      policies:
+        - p, proj:infrastructure:admin, applications, *, infrastructure/*, allow
+      groups:
+        - infrastructure-admins
+    
+    # Developer role - read-only access
+    - name: developer
+      description: Read-only access to infrastructure project
+      policies:
+        - p, proj:infrastructure:developer, applications, get, infrastructure/*, allow
+        - p, proj:infrastructure:developer, applications, sync, infrastructure/*, allow
+      groups:
+        - developers
+    
+    # Automation role - for CI/CD pipelines
+    - name: automation
+      description: Automated deployment access
+      policies:
+        - p, proj:infrastructure:automation, applications, sync, infrastructure/*, allow
+        - p, proj:infrastructure:automation, applications, update, infrastructure/*, allow
+  
+  # Sync windows - when syncs are allowed
+  syncWindows:
+    # Allow syncs 24/7 for development
+    - kind: allow
+      schedule: '* * * * *'
+      duration: 24h
+      applications:
+        - '*'
+      namespaces:
+        - '*'
+      clusters:
+        - https://kubernetes.default.svc
+    
+    # Maintenance window (example - customize as needed)
+    # - kind: deny
+    #   schedule: '0 2 * * 0'  # Sunday 2 AM
+    #   duration: 2h
+    #   applications:
+    #     - '*'
+  
+  # Orphaned resources handling
+  orphanedResources:
+    warn: true

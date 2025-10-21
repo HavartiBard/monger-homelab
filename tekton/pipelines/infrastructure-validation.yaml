@@ -1,0 +1,144 @@
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: infrastructure-validation
+  namespace: tekton-pipelines
+  labels:
+    app.kubernetes.io/version: "0.1"
+  annotations:
+    tekton.dev/pipelines.minVersion: "0.12.1"
+    tekton.dev/tags: infrastructure, validation
+    tekton.dev/displayName: "Infrastructure Validation Pipeline"
+spec:
+  description: >-
+    This pipeline validates infrastructure code changes including Terraform
+    and Ansible before they are applied to the homelab environment.
+  
+  params:
+    - name: git-url
+      description: Git repository URL
+      type: string
+      default: "https://github.com/HavartiBard/monger-homelab.git"
+    
+    - name: git-revision
+      description: Git revision to check out (branch, tag, sha)
+      type: string
+      default: "main"
+    
+    - name: terraform-version
+      description: Terraform version to use
+      type: string
+      default: "1.9.0"
+    
+    - name: ansible-version
+      description: Ansible version to use
+      type: string
+      default: "2.17"
+  
+  workspaces:
+    - name: shared-data
+      description: Workspace for sharing data between tasks
+    
+    - name: git-credentials
+      description: Git credentials (optional)
+      optional: true
+  
+  tasks:
+    # Task 1: Clone repository
+    - name: fetch-repository
+      taskRef:
+        name: git-clone
+        kind: ClusterTask
+      params:
+        - name: url
+          value: $(params.git-url)
+        - name: revision
+          value: $(params.git-revision)
+        - name: deleteExisting
+          value: "true"
+      workspaces:
+        - name: output
+          workspace: shared-data
+        - name: ssh-directory
+          workspace: git-credentials
+    
+    # Task 2: Validate Terraform
+    - name: validate-terraform
+      taskRef:
+        name: terraform-validate
+      runAfter:
+        - fetch-repository
+      params:
+        - name: terraform-version
+          value: $(params.terraform-version)
+        - name: working-dir
+          value: "terraform"
+      workspaces:
+        - name: source
+          workspace: shared-data
+    
+    # Task 3: Validate Ansible
+    - name: validate-ansible
+      taskRef:
+        name: ansible-validate
+      runAfter:
+        - fetch-repository
+      params:
+        - name: ansible-version
+          value: $(params.ansible-version)
+        - name: playbook-dir
+          value: "playbook"
+        - name: inventory-path
+          value: "inventory/raclette/inventory.ini"
+      workspaces:
+        - name: source
+          workspace: shared-data
+    
+    # Task 4: Security scan (optional - can be added later)
+    # - name: security-scan
+    #   taskRef:
+    #     name: trivy-scan
+    #   runAfter:
+    #     - validate-terraform
+    #     - validate-ansible
+    
+  finally:
+    # Send notification regardless of success/failure
+    - name: send-notification
+      taskRef:
+        name: slack-notify
+        kind: Task
+      params:
+        - name: message
+          value: "Infrastructure validation completed for $(params.git-revision)"
+        - name: status
+          value: "$(tasks.status)"
+      workspaces:
+        - name: source
+          workspace: shared-data
+
+---
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  generateName: infrastructure-validation-run-
+  namespace: tekton-pipelines
+spec:
+  pipelineRef:
+    name: infrastructure-validation
+  params:
+    - name: git-url
+      value: "https://github.com/HavartiBard/monger-homelab.git"
+    - name: git-revision
+      value: "main"
+  workspaces:
+    - name: shared-data
+      volumeClaimTemplate:
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 1Gi
+  timeouts:
+    pipeline: "1h"

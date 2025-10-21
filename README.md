@@ -11,6 +11,8 @@ This repository contains the complete infrastructure definition for the Monger h
 - **Compute** - Proxmox VMs managed via Terraform
 - **Network** - Multi-VLAN setup (VLAN 20: Homelab, VLAN 30: IoT)
 - **Automation** - Ansible playbooks for configuration management
+- **CI/CD** - ArgoCD & Tekton pipelines for GitOps deployments ⭐ **NEW**
+- **Monitoring** - Prometheus & Grafana for observability ⭐ **NEW**
 
 ## 📚 Documentation Index
 
@@ -18,11 +20,20 @@ This repository contains the complete infrastructure definition for the Monger h
 - **[Setup Guide](SETUP_GUIDE.md)** - Initial setup and prerequisites
 - **[DNS Deployment](terraform/DNS_DEPLOYMENT.md)** - Deploy DNS servers via Terraform
 - **[DNS Management Strategy](DNS_MANAGEMENT_STRATEGY.md)** - How DNS zones are managed
+- **[CI/CD Quick Start](CICD_README.md)** - GitOps deployment guide ⭐ **NEW**
+
+### CI/CD & DevOps ⭐ **NEW**
+- **[CI/CD Strategy](docs/CI_CD_STRATEGY.md)** - Complete GitOps strategy
+- **[Implementation Guide](docs/IMPLEMENTATION_GUIDE.md)** - Step-by-step setup
+- **[ArgoCD vs Jenkins](docs/ARGOCD_VS_JENKINS.md)** - Technology decision guide
+- **[Summary & Next Steps](docs/SUMMARY_AND_NEXT_STEPS.md)** - Executive summary
 
 ### Infrastructure Components
 - **[Terraform](terraform/)** - VM provisioning and infrastructure
 - **[Ansible Playbooks](playbook/)** - Configuration management
 - **[Configuration Files](config/)** - DHCP scopes and DNS zones
+- **[ArgoCD Applications](argocd/)** - GitOps application definitions ⭐ **NEW**
+- **[Tekton Pipelines](tekton/)** - CI/CD pipeline definitions ⭐ **NEW**
 
 ### Operations
 - **[Backup & Restore](playbook/README_BACKUP_RESTORE.md)** - Backup procedures
@@ -108,6 +119,7 @@ dig @192.168.20.29 -x 192.168.20.100
 monger-homelab/
 ├── terraform/              # Infrastructure as Code
 │   ├── main.tf            # VM definitions
+│   ├── k3s.tfvars         # K3s cluster definition
 │   ├── variables.tf       # Terraform variables
 │   └── DNS_DEPLOYMENT.md  # Deployment guide
 ├── playbook/              # Ansible playbooks
@@ -115,14 +127,28 @@ monger-homelab/
 │   ├── configure_dns_zones.yml   # DNS zone management
 │   ├── technitium_dns.yml        # Install Technitium
 │   └── README_BACKUP_RESTORE.md  # Backup procedures
+├── argocd/                # ⭐ NEW: GitOps applications
+│   ├── applications/      # Application definitions
+│   └── projects/          # ArgoCD projects
+├── tekton/                # ⭐ NEW: CI/CD pipelines
+│   ├── pipelines/         # Pipeline definitions
+│   ├── tasks/             # Reusable tasks
+│   └── triggers/          # Webhook triggers
+├── k8s/                   # ⭐ NEW: Kubernetes manifests
+│   ├── base/              # Base configurations
+│   └── overlays/          # Environment overlays
 ├── config/                # Configuration files
 │   ├── dhcp_scopes.yml    # DHCP scope definitions
 │   └── dns_zones.yml      # DNS zone definitions
 ├── inventory/             # Ansible inventory
 │   └── raclette/
 │       └── inventory.ini  # Host definitions
+├── docs/                  # ⭐ NEW: Comprehensive documentation
+│   ├── CI_CD_STRATEGY.md  # GitOps strategy
+│   └── IMPLEMENTATION_GUIDE.md  # Setup guide
 └── scripts/               # Utility scripts
-    └── setup-unraid-mount.sh
+    ├── setup-unraid-mount.sh
+    └── bootstrap-cicd.sh  # ⭐ NEW: Automated CI/CD setup
 ```
 
 ## 🔧 Common Operations

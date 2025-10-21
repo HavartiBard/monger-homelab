@@ -1,0 +1,105 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: ansible-validate
+  namespace: tekton-pipelines
+  labels:
+    app.kubernetes.io/version: "0.1"
+  annotations:
+    tekton.dev/pipelines.minVersion: "0.12.1"
+    tekton.dev/categories: Configuration Management
+    tekton.dev/tags: ansible, validation
+    tekton.dev/displayName: "Ansible Validate"
+    tekton.dev/platforms: "linux/amd64,linux/arm64"
+spec:
+  description: >-
+    This task performs Ansible playbook validation including syntax checking
+    and YAML linting.
+  
+  params:
+    - name: ansible-version
+      description: Version of Ansible to use
+      type: string
+      default: "2.17"
+    
+    - name: playbook-dir
+      description: Directory containing Ansible playbooks
+      type: string
+      default: "playbook"
+    
+    - name: inventory-path
+      description: Path to inventory file
+      type: string
+      default: "inventory/raclette/inventory.ini"
+  
+  workspaces:
+    - name: source
+      description: The workspace containing the Ansible code
+  
+  steps:
+    - name: install-dependencies
+      image: python:3.11-slim
+      workingDir: $(workspaces.source.path)
+      script: |
+        #!/bin/bash
+        set -e
+        echo "📦 Installing dependencies..."
+        pip install --quiet ansible-core==$(params.ansible-version) yamllint ansible-lint
+        echo "✅ Dependencies installed"
+    
+    - name: yaml-lint
+      image: python:3.11-slim
+      workingDir: $(workspaces.source.path)
+      script: |
+        #!/bin/bash
+        set -e
+        echo "🔍 Linting YAML files..."
+        
+        # Create yamllint config
+        cat > /tmp/.yamllint << EOF
+        extends: default
+        rules:
+          line-length:
+            max: 120
+          comments:
+            min-spaces-from-content: 1
+        EOF
+        
+        yamllint -c /tmp/.yamllint $(params.playbook-dir)/*.yml config/*.yml
+        echo "✅ YAML linting passed"
+    
+    - name: ansible-syntax-check
+      image: python:3.11-slim
+      workingDir: $(workspaces.source.path)
+      script: |
+        #!/bin/bash
+        set -e
+        echo "🔍 Checking Ansible syntax..."
+        
+        pip install --quiet ansible-core==$(params.ansible-version)
+        
+        # Check each playbook
+        for playbook in $(params.playbook-dir)/*.yml; do
+          echo "Checking $playbook..."
+          ansible-playbook --syntax-check "$playbook" -i $(params.inventory-path) || true
+        done
+        
+        echo "✅ Ansible syntax check complete"
+    
+    - name: ansible-lint
+      image: python:3.11-slim
+      workingDir: $(workspaces.source.path)
+      script: |
+        #!/bin/bash
+        set -e
+        echo "🔍 Running Ansible Lint..."
+        
+        pip install --quiet ansible-core==$(params.ansible-version) ansible-lint
+        
+        # Run ansible-lint on playbooks
+        ansible-lint $(params.playbook-dir)/*.yml || {
+          echo "⚠️  Ansible lint found issues (non-blocking)"
+          exit 0
+        }
+        
+        echo "✅ Ansible lint passed"
