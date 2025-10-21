@@ -212,48 +212,69 @@ git push origin main
   - `terraform fmt -check`
   - `terraform validate`
   - `terraform plan` (dry-run)
+  - 1Password secret integration ✅
 
 - **Ansible Validation**
   - YAML linting
   - Syntax checking
   - ansible-lint rules
+  - Vault-encrypted secrets ✅
 
 - **Automated Deployment**
   - Git-based deployments
   - Automatic rollback on failure
   - Deployment history
+  - Secret sync from 1Password ✅
 
 - **GitOps**
   - Desired state in Git
   - Auto-sync to cluster
   - Drift detection
+  - External Secrets Operator ✅
 
 ---
 
 ## 🔐 Security Considerations
 
-### Secrets Management
+### Secrets Management ✅ **IMPLEMENTED**
 
-**Current State**: Secrets in `terraform/vars.tf` (plaintext)
+**Current Implementation**: 1Password + External Secrets Operator
 
-**Recommended**: Use External Secrets Operator
+Your homelab already has enterprise-grade secret management:
 
+#### Terraform (Existing)
+```hcl
+# terraform/1password.tf
+data "onepassword_item" "proxmox" {
+  vault = "homelab"
+  title = "Proxmox Terraform"
+}
+```
+
+#### Ansible (Existing)
+```bash
+# Sync from 1Password to Ansible Vault
+./scripts/sync_secrets_from_1password_v2.sh
+```
+
+#### Kubernetes (New - Ready to Deploy)
 ```yaml
-# Example: External Secret referencing Bitwarden
+# k8s/base/external-secrets/proxmox-credentials.yaml
 apiVersion: external-secrets.io/v1beta1
 kind: ExternalSecret
 metadata:
   name: proxmox-credentials
 spec:
   secretStoreRef:
-    name: bitwarden-store
-  target:
-    name: proxmox-creds
+    name: onepassword-cluster
   data:
     - secretKey: api-token
       remoteRef:
-        key: proxmox-api-token
+        key: Proxmox Terraform
+        property: credential
 ```
+
+**See**: `docs/1PASSWORD_ESO_INTEGRATION.md` for complete setup guide
 
 ### Access Control
 

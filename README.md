@@ -11,6 +11,7 @@ This repository contains the complete infrastructure definition for the Monger h
 - **Compute** - Proxmox VMs managed via Terraform
 - **Network** - Multi-VLAN setup (VLAN 20: Homelab, VLAN 30: IoT)
 - **Automation** - Ansible playbooks for configuration management
+- **Secret Management** - 1Password integration across all platforms ✅
 - **CI/CD** - ArgoCD & Tekton pipelines for GitOps deployments ⭐ **NEW**
 - **Monitoring** - Prometheus & Grafana for observability ⭐ **NEW**
 
@@ -27,6 +28,7 @@ This repository contains the complete infrastructure definition for the Monger h
 - **[Implementation Guide](docs/IMPLEMENTATION_GUIDE.md)** - Step-by-step setup
 - **[ArgoCD vs Jenkins](docs/ARGOCD_VS_JENKINS.md)** - Technology decision guide
 - **[Summary & Next Steps](docs/SUMMARY_AND_NEXT_STEPS.md)** - Executive summary
+- **[1Password + ESO Integration](docs/1PASSWORD_ESO_INTEGRATION.md)** - Secret management ✅
 
 ### Infrastructure Components
 - **[Terraform](terraform/)** - VM provisioning and infrastructure
