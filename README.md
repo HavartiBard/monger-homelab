@@ -29,6 +29,8 @@ This repository contains the complete infrastructure definition for the Monger h
 - **[ArgoCD vs Jenkins](docs/ARGOCD_VS_JENKINS.md)** - Technology decision guide
 - **[Summary & Next Steps](docs/SUMMARY_AND_NEXT_STEPS.md)** - Executive summary
 - **[1Password + ESO Integration](docs/1PASSWORD_ESO_INTEGRATION.md)** - Secret management ✅
+- **[Resource Constrained Options](docs/RESOURCE_CONSTRAINED_OPTIONS.md)** - Deployment options by resources 🎯
+- **[Check Resources](CHECK_RESOURCES.md)** - Quick resource check commands 📊
 
 ### Infrastructure Components
 - **[Terraform](terraform/)** - VM provisioning and infrastructure

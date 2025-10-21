@@ -1,0 +1,247 @@
+version: '3.8'
+
+# K3s Distributed HA Cluster - Unraid Components
+# 
+# This runs:
+# - 1 K3s server (control plane) - joins Proxmox servers
+# - 5 K3s agents (workers)
+#
+# Together with 2 servers on Proxmox, creates a 3-host HA cluster
+#
+# Prerequisites:
+# - k3s-server-1 running on pve1
+# - k3s-server-2 running on pve2
+# - K3S_TOKEN from any Proxmox server
+# - Network connectivity to both Proxmox nodes
+
+services:
+  # ======================================
+  # CONTROL PLANE (joins Proxmox cluster)
+  # ======================================
+  
+  k3s-server-3:
+    image: rancher/k3s:v1.28.5-k3s1
+    container_name: k3s-server-3
+    hostname: k3s-server-3
+    privileged: true
+    restart: unless-stopped
+    
+    # This is a SERVER that joins the existing cluster
+    command: server
+    
+    environment:
+      # Join the first server (on pve1)
+      - K3S_URL=https://k3s-server-1.klsll.com:6443
+      - K3S_TOKEN=${K3S_TOKEN}
+      - K3S_NODE_NAME=k3s-server-3
+      
+      # Disable traefik (we'll use ingress-nginx)
+      - K3S_DISABLE=traefik
+      
+    volumes:
+      - /mnt/user/appdata/k3s-cluster/server-3:/var/lib/rancher/k3s
+      - /mnt/user/appdata/k3s-cluster/server-3/kubelet:/var/lib/kubelet:rshared
+      
+    tmpfs:
+      - /run
+      - /var/run
+      
+    # Expose K3s API port (for workers to connect)
+    ports:
+      - "6443:6443"   # Kubernetes API
+      - "10250:10250" # Kubelet
+      
+    network_mode: host
+    
+    labels:
+      net.unraid.docker.icon: "https://raw.githubusercontent.com/k3s-io/k3s/master/assets/k3s-logo-light.svg"
+      net.unraid.docker.managed: "composeman"
+      
+    # Slightly more RAM for control plane
+    mem_limit: 4g
+    mem_reservation: 2g
+  
+  # ======================================
+  # WORKERS (run actual workloads)
+  # ======================================
+  
+  k3s-agent-1:
+    image: rancher/k3s:v1.28.5-k3s1
+    container_name: k3s-agent-1
+    hostname: k3s-agent-1
+    privileged: true
+    restart: unless-stopped
+    
+    environment:
+      # Connect to pve1 server
+      - K3S_URL=https://k3s-server-1.klsll.com:6443
+      - K3S_TOKEN=${K3S_TOKEN}
+      - K3S_NODE_NAME=k3s-agent-1
+      
+    volumes:
+      - /mnt/user/appdata/k3s-cluster/agent-1:/var/lib/rancher/k3s
+      - /mnt/user/appdata/k3s-cluster/agent-1/kubelet:/var/lib/kubelet:rshared
+      
+    tmpfs:
+      - /run
+      - /var/run
+      
+    network_mode: host
+    
+    labels:
+      net.unraid.docker.icon: "https://raw.githubusercontent.com/k3s-io/k3s/master/assets/k3s-logo-light.svg"
+      net.unraid.docker.managed: "composeman"
+      
+    mem_limit: 4g
+    mem_reservation: 2g
+    
+    depends_on:
+      - k3s-server-3
+  
+  k3s-agent-2:
+    image: rancher/k3s:v1.28.5-k3s1
+    container_name: k3s-agent-2
+    hostname: k3s-agent-2
+    privileged: true
+    restart: unless-stopped
+    
+    environment:
+      # Connect to pve2 server
+      - K3S_URL=https://k3s-server-2.klsll.com:6443
+      - K3S_TOKEN=${K3S_TOKEN}
+      - K3S_NODE_NAME=k3s-agent-2
+      
+    volumes:
+      - /mnt/user/appdata/k3s-cluster/agent-2:/var/lib/rancher/k3s
+      - /mnt/user/appdata/k3s-cluster/agent-2/kubelet:/var/lib/kubelet:rshared
+      
+    tmpfs:
+      - /run
+      - /var/run
+      
+    network_mode: host
+    
+    labels:
+      net.unraid.docker.icon: "https://raw.githubusercontent.com/k3s-io/k3s/master/assets/k3s-logo-light.svg"
+      net.unraid.docker.managed: "composeman"
+      
+    mem_limit: 4g
+    mem_reservation: 2g
+    
+    depends_on:
+      - k3s-server-3
+  
+  k3s-agent-3:
+    image: rancher/k3s:v1.28.5-k3s1
+    container_name: k3s-agent-3
+    hostname: k3s-agent-3
+    privileged: true
+    restart: unless-stopped
+    
+    environment:
+      # Connect to Unraid server
+      - K3S_URL=https://k3s-server-3:6443
+      - K3S_TOKEN=${K3S_TOKEN}
+      - K3S_NODE_NAME=k3s-agent-3
+      
+    volumes:
+      - /mnt/user/appdata/k3s-cluster/agent-3:/var/lib/rancher/k3s
+      - /mnt/user/appdata/k3s-cluster/agent-3/kubelet:/var/lib/kubelet:rshared
+      
+    tmpfs:
+      - /run
+      - /var/run
+      
+    network_mode: host
+    
+    labels:
+      net.unraid.docker.icon: "https://raw.githubusercontent.com/k3s-io/k3s/master/assets/k3s-logo-light.svg"
+      net.unraid.docker.managed: "composeman"
+      
+    mem_limit: 4g
+    mem_reservation: 2g
+    
+    depends_on:
+      - k3s-server-3
+  
+  k3s-agent-4:
+    image: rancher/k3s:v1.28.5-k3s1
+    container_name: k3s-agent-4
+    hostname: k3s-agent-4
+    privileged: true
+    restart: unless-stopped
+    
+    environment:
+      - K3S_URL=https://k3s-server-1.klsll.com:6443
+      - K3S_TOKEN=${K3S_TOKEN}
+      - K3S_NODE_NAME=k3s-agent-4
+      
+    volumes:
+      - /mnt/user/appdata/k3s-cluster/agent-4:/var/lib/rancher/k3s
+      - /mnt/user/appdata/k3s-cluster/agent-4/kubelet:/var/lib/kubelet:rshared
+      
+    tmpfs:
+      - /run
+      - /var/run
+      
+    network_mode: host
+    
+    labels:
+      net.unraid.docker.icon: "https://raw.githubusercontent.com/k3s-io/k3s/master/assets/k3s-logo-light.svg"
+      net.unraid.docker.managed: "composeman"
+      
+    mem_limit: 4g
+    mem_reservation: 2g
+    
+    depends_on:
+      - k3s-server-3
+  
+  k3s-agent-5:
+    image: rancher/k3s:v1.28.5-k3s1
+    container_name: k3s-agent-5
+    hostname: k3s-agent-5
+    privileged: true
+    restart: unless-stopped
+    
+    environment:
+      - K3S_URL=https://k3s-server-2.klsll.com:6443
+      - K3S_TOKEN=${K3S_TOKEN}
+      - K3S_NODE_NAME=k3s-agent-5
+      
+    volumes:
+      - /mnt/user/appdata/k3s-cluster/agent-5:/var/lib/rancher/k3s
+      - /mnt/user/appdata/k3s-cluster/agent-5/kubelet:/var/lib/kubelet:rshared
+      
+    tmpfs:
+      - /run
+      - /var/run
+      
+    network_mode: host
+    
+    labels:
+      net.unraid.docker.icon: "https://raw.githubusercontent.com/k3s-io/k3s/master/assets/k3s-logo-light.svg"
+      net.unraid.docker.managed: "composeman"
+      
+    mem_limit: 4g
+    mem_reservation: 2g
+    
+    depends_on:
+      - k3s-server-3
+
+# ======================================
+# RESOURCE SUMMARY
+# ======================================
+#
+# Unraid containers:
+# - 1 server:   4GB RAM
+# - 5 workers: 20GB RAM
+# Total:       24GB of 60.6GB (40% utilization)
+#
+# Full cluster (8 nodes across 3 hosts):
+# - pve1:   1 server  (2GB)
+# - pve2:   1 server  (2GB)
+# - Unraid: 1 server  (4GB)
+# - Unraid: 5 workers (20GB)
+# Total:    28GB RAM
+#
+# Resilience: Can lose ANY single host!

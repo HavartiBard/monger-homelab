@@ -1,0 +1,166 @@
+version: '3.8'
+
+# K3s Agent Containers for Unraid - 5 Workers
+# Provides more capacity and redundancy for workloads
+#
+# Resource Usage: 20GB RAM (of 60.6GB available on Unraid)
+# Each worker: 4GB RAM limit
+#
+# Prerequisites:
+# - K3s HA cluster running on Proxmox (3 control planes)
+# - K3S_TOKEN from: sudo cat /var/lib/rancher/k3s/server/node-token
+# - Can connect to any control plane (k3s-server-1, k3s-server-2, or k3s-server-3)
+
+services:
+  k3s-agent-1:
+    image: rancher/k3s:v1.28.5-k3s1
+    container_name: k3s-agent-1
+    hostname: k3s-agent-1
+    privileged: true
+    restart: unless-stopped
+    
+    environment:
+      - K3S_URL=https://k3s-server-1.klsll.com:6443
+      - K3S_TOKEN=${K3S_TOKEN}
+      - K3S_NODE_NAME=k3s-agent-1
+      
+    volumes:
+      - /mnt/user/appdata/k3s-agents/agent-1:/var/lib/rancher/k3s
+      - /mnt/user/appdata/k3s-agents/agent-1/kubelet:/var/lib/kubelet:rshared
+      
+    tmpfs:
+      - /run
+      - /var/run
+      
+    network_mode: host
+    
+    labels:
+      net.unraid.docker.icon: "https://raw.githubusercontent.com/k3s-io/k3s/master/assets/k3s-logo-light.svg"
+      net.unraid.docker.managed: "composeman"
+      
+    mem_limit: 4g
+    mem_reservation: 2g
+  
+  k3s-agent-2:
+    image: rancher/k3s:v1.28.5-k3s1
+    container_name: k3s-agent-2
+    hostname: k3s-agent-2
+    privileged: true
+    restart: unless-stopped
+    
+    environment:
+      - K3S_URL=https://k3s-server-2.klsll.com:6443  # Different server for load distribution
+      - K3S_TOKEN=${K3S_TOKEN}
+      - K3S_NODE_NAME=k3s-agent-2
+      
+    volumes:
+      - /mnt/user/appdata/k3s-agents/agent-2:/var/lib/rancher/k3s
+      - /mnt/user/appdata/k3s-agents/agent-2/kubelet:/var/lib/kubelet:rshared
+      
+    tmpfs:
+      - /run
+      - /var/run
+      
+    network_mode: host
+    
+    labels:
+      net.unraid.docker.icon: "https://raw.githubusercontent.com/k3s-io/k3s/master/assets/k3s-logo-light.svg"
+      net.unraid.docker.managed: "composeman"
+      
+    mem_limit: 4g
+    mem_reservation: 2g
+  
+  k3s-agent-3:
+    image: rancher/k3s:v1.28.5-k3s1
+    container_name: k3s-agent-3
+    hostname: k3s-agent-3
+    privileged: true
+    restart: unless-stopped
+    
+    environment:
+      - K3S_URL=https://k3s-server-3.klsll.com:6443  # Third server
+      - K3S_TOKEN=${K3S_TOKEN}
+      - K3S_NODE_NAME=k3s-agent-3
+      
+    volumes:
+      - /mnt/user/appdata/k3s-agents/agent-3:/var/lib/rancher/k3s
+      - /mnt/user/appdata/k3s-agents/agent-3/kubelet:/var/lib/kubelet:rshared
+      
+    tmpfs:
+      - /run
+      - /var/run
+      
+    network_mode: host
+    
+    labels:
+      net.unraid.docker.icon: "https://raw.githubusercontent.com/k3s-io/k3s/master/assets/k3s-logo-light.svg"
+      net.unraid.docker.managed: "composeman"
+      
+    mem_limit: 4g
+    mem_reservation: 2g
+  
+  k3s-agent-4:
+    image: rancher/k3s:v1.28.5-k3s1
+    container_name: k3s-agent-4
+    hostname: k3s-agent-4
+    privileged: true
+    restart: unless-stopped
+    
+    environment:
+      - K3S_URL=https://k3s-server-1.klsll.com:6443
+      - K3S_TOKEN=${K3S_TOKEN}
+      - K3S_NODE_NAME=k3s-agent-4
+      
+    volumes:
+      - /mnt/user/appdata/k3s-agents/agent-4:/var/lib/rancher/k3s
+      - /mnt/user/appdata/k3s-agents/agent-4/kubelet:/var/lib/kubelet:rshared
+      
+    tmpfs:
+      - /run
+      - /var/run
+      
+    network_mode: host
+    
+    labels:
+      net.unraid.docker.icon: "https://raw.githubusercontent.com/k3s-io/k3s/master/assets/k3s-logo-light.svg"
+      net.unraid.docker.managed: "composeman"
+      
+    mem_limit: 4g
+    mem_reservation: 2g
+  
+  k3s-agent-5:
+    image: rancher/k3s:v1.28.5-k3s1
+    container_name: k3s-agent-5
+    hostname: k3s-agent-5
+    privileged: true
+    restart: unless-stopped
+    
+    environment:
+      - K3S_URL=https://k3s-server-2.klsll.com:6443
+      - K3S_TOKEN=${K3S_TOKEN}
+      - K3S_NODE_NAME=k3s-agent-5
+      
+    volumes:
+      - /mnt/user/appdata/k3s-agents/agent-5:/var/lib/rancher/k3s
+      - /mnt/user/appdata/k3s-agents/agent-5/kubelet:/var/lib/kubelet:rshared
+      
+    tmpfs:
+      - /run
+      - /var/run
+      
+    network_mode: host
+    
+    labels:
+      net.unraid.docker.icon: "https://raw.githubusercontent.com/k3s-io/k3s/master/assets/k3s-logo-light.svg"
+      net.unraid.docker.managed: "composeman"
+      
+    mem_limit: 4g
+    mem_reservation: 2g
+
+# Notes:
+# - 5 workers provide excellent redundancy and capacity
+# - Workers connect to different control planes for load distribution
+# - Using host network mode for simplicity
+# - Each agent limited to 4GB RAM (20GB total)
+# - Still leaves 40GB+ free on Unraid for other uses
+# - Can scale down by commenting out agents 4-5 if needed

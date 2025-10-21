@@ -1,0 +1,111 @@
+version: '3.8'
+
+# K3s Agent Containers for Unraid
+# These join the K3s server running on Proxmox
+#
+# Setup Instructions:
+# 1. Create directory: /mnt/user/appdata/k3s-agents/
+# 2. Copy this file to that directory
+# 3. Create .env file with K3S_TOKEN (from Proxmox server)
+# 4. Run: docker-compose up -d
+#
+# Prerequisites:
+# - K3s server running on Proxmox (k3s-server.klsll.com)
+# - K3S_TOKEN from: sudo cat /var/lib/rancher/k3s/server/node-token
+# - Unraid network can reach Proxmox VLAN 20
+
+services:
+  k3s-agent-1:
+    image: rancher/k3s:v1.28.5-k3s1
+    container_name: k3s-agent-1
+    hostname: k3s-agent-1
+    privileged: true
+    restart: unless-stopped
+    
+    environment:
+      - K3S_URL=https://k3s-server.klsll.com:6443
+      - K3S_TOKEN=${K3S_TOKEN}
+      - K3S_NODE_NAME=k3s-agent-1
+      
+    volumes:
+      - /mnt/user/appdata/k3s-agents/agent-1:/var/lib/rancher/k3s
+      - /mnt/user/appdata/k3s-agents/agent-1/kubelet:/var/lib/kubelet:rshared
+      
+    tmpfs:
+      - /run
+      - /var/run
+      
+    network_mode: host
+    
+    labels:
+      net.unraid.docker.icon: "https://raw.githubusercontent.com/k3s-io/k3s/master/assets/k3s-logo-light.svg"
+      net.unraid.docker.managed: "composeman"
+      
+    # Resource limits (4GB RAM per agent)
+    mem_limit: 4g
+    mem_reservation: 2g
+  
+  k3s-agent-2:
+    image: rancher/k3s:v1.28.5-k3s1
+    container_name: k3s-agent-2
+    hostname: k3s-agent-2
+    privileged: true
+    restart: unless-stopped
+    
+    environment:
+      - K3S_URL=https://k3s-server.klsll.com:6443
+      - K3S_TOKEN=${K3S_TOKEN}
+      - K3S_NODE_NAME=k3s-agent-2
+      
+    volumes:
+      - /mnt/user/appdata/k3s-agents/agent-2:/var/lib/rancher/k3s
+      - /mnt/user/appdata/k3s-agents/agent-2/kubelet:/var/lib/kubelet:rshared
+      
+    tmpfs:
+      - /run
+      - /var/run
+      
+    network_mode: host
+    
+    labels:
+      net.unraid.docker.icon: "https://raw.githubusercontent.com/k3s-io/k3s/master/assets/k3s-logo-light.svg"
+      net.unraid.docker.managed: "composeman"
+      
+    mem_limit: 4g
+    mem_reservation: 2g
+  
+  k3s-agent-3:
+    image: rancher/k3s:v1.28.5-k3s1
+    container_name: k3s-agent-3
+    hostname: k3s-agent-3
+    privileged: true
+    restart: unless-stopped
+    
+    environment:
+      - K3S_URL=https://k3s-server.klsll.com:6443
+      - K3S_TOKEN=${K3S_TOKEN}
+      - K3S_NODE_NAME=k3s-agent-3
+      
+    volumes:
+      - /mnt/user/appdata/k3s-agents/agent-3:/var/lib/rancher/k3s
+      - /mnt/user/appdata/k3s-agents/agent-3/kubelet:/var/lib/kubelet:rshared
+      
+    tmpfs:
+      - /run
+      - /var/run
+      
+    network_mode: host
+    
+    labels:
+      net.unraid.docker.icon: "https://raw.githubusercontent.com/k3s-io/k3s/master/assets/k3s-logo-light.svg"
+      net.unraid.docker.managed: "composeman"
+      
+    mem_limit: 4g
+    mem_reservation: 2g
+
+# Notes:
+# - Using host network mode for simplicity (K3s needs various ports)
+# - Privileged mode required for K3s to manage containers
+# - Each agent limited to 4GB RAM (12GB total, plenty of headroom)
+# - Volumes on Unraid array for persistence
+# - Auto-restart unless manually stopped
